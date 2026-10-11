@@ -1,0 +1,2609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="description" content="Roll a crystal snowball down fractal hills. Multiple modes, prestige, daily challenges, and more!">
+<title>Crystal Snowball Roll — Deluxe</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: radial-gradient(ellipse at top, #1a0033 0%, #0a0015 50%, #000022 100%);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    color: white; overflow: hidden; height: 100%; width: 100%;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #app {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 8px; gap: 6px;
+  }
+  h1 {
+    margin: 0; color: #00ffff;
+    text-shadow: 0 0 20px #00ffff, 0 0 40px #ff00ff;
+    font-size: clamp(22px, 4.5vw, 34px); letter-spacing: 3px;
+    animation: glow 2s ease-in-out infinite; text-align: center;
+  }
+  @keyframes glow {
+    0%, 100% { text-shadow: 0 0 20px #00ffff, 0 0 40px #ff00ff; }
+    50% { text-shadow: 0 0 30px #00ffff, 0 0 60px #ff00ff, 0 0 90px #ffff00; }
+  }
+  #gameWrapper {
+    position: relative;
+    width: min(600px, 100vw - 16px);
+    aspect-ratio: 6 / 7;
+    max-height: calc(100vh - 160px);
+  }
+  canvas {
+    width: 100%; height: 100%;
+    background: linear-gradient(180deg, #0a0015 0%, #1a0033 30%, #2d1b4e 60%, #4a2d6b 100%);
+    border: 3px solid #00ffff; border-radius: 12px;
+    box-shadow: 0 0 40px rgba(0, 255, 255, 0.5);
+    display: block; touch-action: none;
+  }
+  .hud {
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+    font-size: 12px; width: 100%; max-width: 600px;
+  }
+  .stat {
+    background: rgba(0, 255, 255, 0.1); padding: 3px 8px; border-radius: 6px;
+    border: 1px solid rgba(0, 255, 255, 0.3); white-space: nowrap;
+  }
+  .controls-hint { font-size: 11px; color: #aaa; text-align: center; padding: 2px; }
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(5, 0, 20, 0.94);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    display: none; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: 16px; border-radius: 12px; z-index: 10; overflow-y: auto;
+  }
+  .overlay.active { display: flex; }
+  .overlay h2 {
+    color: #00ffff; text-shadow: 0 0 20px #00ffff;
+    margin: 0 0 12px 0; font-size: clamp(20px, 3.5vw, 28px);
+    text-align: center; letter-spacing: 2px;
+  }
+  .btn {
+    background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+    color: #000; border: none; padding: 10px 22px; margin: 4px;
+    border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer;
+    transition: all 0.2s; min-width: 160px;
+    box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+  }
+  .btn:hover, .btn:focus {
+    transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5); outline: none;
+  }
+  .btn:active { transform: translateY(0); }
+  .btn.secondary { background: linear-gradient(135deg, #ff00ff 0%, #8800ff 100%); color: #fff; }
+  .btn.danger { background: linear-gradient(135deg, #ff0066 0%, #ff0000 100%); color: #fff; }
+  .btn.gold { background: linear-gradient(135deg, #ffd700 0%, #ff8800 100%); color: #000; }
+  .btn.ghost {
+    background: rgba(255, 255, 255, 0.1); color: #00ffff;
+    border: 1px solid rgba(0, 255, 255, 0.4); box-shadow: none;
+  }
+  .btn.small { padding: 6px 14px; font-size: 13px; min-width: 90px; }
+  .menu-buttons { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .mode-selector { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; justify-content: center; }
+  .mode-card {
+    background: rgba(255, 255, 255, 0.08); padding: 12px; border-radius: 10px;
+    border: 2px solid rgba(0, 255, 255, 0.3); cursor: pointer;
+    transition: all 0.2s; width: 140px; text-align: center;
+  }
+  .mode-card:hover { background: rgba(0, 255, 255, 0.15); border-color: #00ffff; transform: translateY(-2px); }
+  .mode-card.selected { background: rgba(0, 255, 255, 0.25); border-color: #00ffff; box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+  .mode-icon { font-size: 28px; margin-bottom: 4px; }
+  .mode-name { font-weight: bold; font-size: 14px; color: #00ffff; }
+  .mode-desc { font-size: 10px; color: #aaa; margin-top: 4px; line-height: 1.3; }
+  .upgrade-list, .scrollable {
+    width: 100%; max-width: 500px; max-height: 55vh; overflow-y: auto; padding: 0 8px;
+  }
+  .upgrade {
+    background: rgba(255, 255, 255, 0.08); padding: 10px 14px; margin: 6px 0;
+    border-radius: 10px; border: 2px solid rgba(0, 255, 255, 0.3);
+    cursor: pointer; transition: all 0.2s;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .upgrade:hover:not(.maxed):not(.cant-afford) {
+    background: rgba(0, 255, 255, 0.15); border-color: #00ffff; transform: translateX(4px);
+  }
+  .upgrade.maxed { opacity: 0.5; cursor: default; border-color: #666; }
+  .upgrade.cant-afford { opacity: 0.6; cursor: not-allowed; }
+  .upgrade-info { flex: 1; }
+  .upgrade-name { font-weight: bold; font-size: 14px; color: #00ffff; }
+  .upgrade-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .upgrade-level { font-size: 10px; color: #ff00ff; margin-top: 3px; }
+  .upgrade-cost {
+    background: rgba(255, 215, 0, 0.2); padding: 5px 10px; border-radius: 6px;
+    font-weight: bold; color: #ffd700; border: 1px solid rgba(255, 215, 0, 0.4);
+    white-space: nowrap; font-size: 13px;
+  }
+  .setting-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px; margin: 4px 0;
+    background: rgba(255, 255, 255, 0.05); border-radius: 8px;
+    width: 100%; max-width: 420px;
+  }
+  .toggle {
+    position: relative; width: 46px; height: 24px;
+    background: #333; border-radius: 12px; cursor: pointer; transition: background 0.3s;
+  }
+  .toggle.on { background: #00ffff; }
+  .toggle::after {
+    content: ''; position: absolute; width: 20px; height: 20px;
+    background: white; border-radius: 50%; top: 2px; left: 2px; transition: left 0.3s;
+  }
+  .toggle.on::after { left: 24px; }
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px; width: 100%; max-width: 500px; margin-bottom: 12px;
+  }
+  .stat-card {
+    background: rgba(0, 255, 255, 0.08); padding: 10px; border-radius: 8px;
+    border: 1px solid rgba(0, 255, 255, 0.3); text-align: center;
+  }
+  .stat-value { font-size: 20px; font-weight: bold; color: #00ffff; }
+  .stat-label { font-size: 10px; color: #aaa; margin-top: 3px; }
+  .achievement-list { width: 100%; max-width: 500px; max-height: 55vh; overflow-y: auto; }
+  .achievement {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin: 4px 0;
+    background: rgba(255, 255, 255, 0.05); border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .achievement.unlocked { background: rgba(255, 215, 0, 0.1); border-color: rgba(255, 215, 0, 0.4); }
+  .achievement.locked { opacity: 0.5; }
+  .achievement-icon { font-size: 24px; min-width: 36px; text-align: center; }
+  .achievement-info { flex: 1; }
+  .achievement-name { font-weight: bold; font-size: 13px; }
+  .achievement-desc { font-size: 10px; color: #aaa; margin-top: 2px; }
+  .touch-controls {
+    position: absolute; bottom: 10px; left: 0; right: 0;
+    display: none; justify-content: space-between; padding: 0 15px;
+    pointer-events: none; z-index: 5;
+  }
+  .touch-btn {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(0, 255, 255, 0.2); border: 2px solid rgba(0, 255, 255, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: white; pointer-events: auto;
+  }
+  .touch-btn.active { background: rgba(0, 255, 255, 0.5); }
+  .touch-btn-group { display: flex; gap: 8px; }
+  @media (hover: none) and (pointer: coarse) { .touch-controls.auto { display: flex; } }
+  .toast {
+    position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9); border: 2px solid #ffd700; color: #ffd700;
+    padding: 8px 16px; border-radius: 8px; font-weight: bold; z-index: 20;
+    animation: toastIn 0.3s ease-out; pointer-events: none;
+    text-align: center; max-width: 90%; font-size: 14px;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translate(-50%, -20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .fps {
+    position: absolute; top: 4px; right: 4px; font-size: 10px;
+    color: rgba(255, 255, 255, 0.5); font-family: monospace;
+    pointer-events: none; z-index: 3;
+  }
+  .scrollbar::-webkit-scrollbar { width: 5px; }
+  .scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 3px; }
+  .scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 255, 255, 0.5); border-radius: 3px; }
+  .coins-display { font-size: 15px; color: #ffd700; margin-bottom: 10px; text-align: center; }
+  .prestige-info {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 136, 0, 0.15));
+    padding: 12px; border-radius: 10px; border: 2px solid #ffd700;
+    margin: 10px 0; text-align: center; max-width: 420px;
+  }
+  .prestige-info h3 { color: #ffd700; margin: 0 0 6px 0; }
+  .prestige-info p { margin: 4px 0; font-size: 13px; }
+  .skin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; width: 100%; max-width: 450px; }
+  .skin-card {
+    background: rgba(255, 255, 255, 0.08); padding: 10px; border-radius: 10px;
+    border: 2px solid rgba(0, 255, 255, 0.3); cursor: pointer; text-align: center;
+    transition: all 0.2s;
+  }
+  .skin-card:hover { background: rgba(0, 255, 255, 0.15); }
+  .skin-card.selected { border-color: #ffd700; box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); }
+  .skin-card.locked { opacity: 0.5; }
+  .skin-preview { width: 50px; height: 50px; margin: 0 auto 6px; border-radius: 50%; }
+  .skin-name { font-size: 12px; font-weight: bold; }
+  .skin-cost { font-size: 10px; color: #ffd700; margin-top: 2px; }
+  .challenge-card {
+    background: rgba(255, 255, 255, 0.08); padding: 12px; margin: 6px 0;
+    border-radius: 10px; border: 2px solid rgba(0, 255, 255, 0.3);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .challenge-card.completed { border-color: #00ff00; background: rgba(0, 255, 0, 0.1); }
+  .challenge-info { flex: 1; }
+  .challenge-name { font-weight: bold; font-size: 14px; color: #00ffff; }
+  .challenge-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .challenge-progress { font-size: 11px; color: #ff00ff; margin-top: 4px; }
+  .challenge-reward { color: #ffd700; font-weight: bold; font-size: 13px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
+  .tab {
+    background: rgba(255, 255, 255, 0.08); padding: 6px 14px; border-radius: 6px;
+    border: 1px solid rgba(0, 255, 255, 0.3); cursor: pointer; font-size: 12px;
+    transition: all 0.2s;
+  }
+  .tab.active { background: rgba(0, 255, 255, 0.25); border-color: #00ffff; color: #00ffff; }
+  .tab:hover { background: rgba(0, 255, 255, 0.15); }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>❄️ CRYSTAL SNOWBALL ❄️</h1>
+  <div id="gameWrapper">
+    <canvas id="game" width="600" height="700"></canvas>
+    <div class="fps" id="fps"></div>
+    <div class="touch-controls auto" id="touchControls">
+      <div class="touch-btn-group">
+        <div class="touch-btn" id="touchLeft">◀</div>
+        <div class="touch-btn" id="touchRight">▶</div>
+      </div>
+      <div class="touch-btn-group">
+        <div class="touch-btn" id="touchDash">⚡</div>
+        <div class="touch-btn" id="touchUlt">💥</div>
+      </div>
+    </div>
+
+    <!-- Main menu -->
+    <div class="overlay active" id="menuScreen">
+      <h2>❄️ CRYSTAL SNOWBALL ❄️</h2>
+      <div style="color:#aaa; margin-bottom:8px; font-size:13px; text-align:center;">
+        <span id="menuPrestige" style="color:#ffd700;"></span>
+      </div>
+      <div style="color:#aaa; margin-bottom:12px; text-align:center; font-size:12px; max-width:420px;">
+        Roll down fractal hills, collect crystals, defeat bosses!
+      </div>
+      <div style="color:#ffd700; margin-bottom:8px; font-size:14px;">💰 <span id="menuCoins">0</span> coins</div>
+      <div class="mode-selector">
+        <div class="mode-card selected" data-mode="classic">
+          <div class="mode-icon">🏔️</div>
+          <div class="mode-name">Classic</div>
+          <div class="mode-desc">Race to the finish line</div>
+        </div>
+        <div class="mode-card" data-mode="endless">
+          <div class="mode-icon">♾️</div>
+          <div class="mode-name">Endless</div>
+          <div class="mode-desc">Infinite hill, ever harder</div>
+        </div>
+        <div class="mode-card" data-mode="daily">
+          <div class="mode-icon">📅</div>
+          <div class="mode-name">Daily</div>
+          <div class="mode-desc">Today's special challenge</div>
+        </div>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn" data-action="play">▶ Play</button>
+        <button class="btn secondary" data-action="shop">💎 Upgrades</button>
+        <button class="btn gold" data-action="prestige">⭐ Prestige</button>
+        <button class="btn ghost" data-action="skins">🎨 Skins</button>
+        <button class="btn ghost" data-action="challenges">📋 Challenges</button>
+        <button class="btn ghost" data-action="achievements">🏆 Achievements</button>
+        <button class="btn ghost" data-action="stats">📊 Stats</button>
+        <button class="btn ghost" data-action="settings">⚙️ Settings</button>
+        <button class="btn ghost" data-action="howto">❓ How to Play</button>
+      </div>
+    </div>
+
+    <!-- Pause menu -->
+    <div class="overlay" id="pauseScreen">
+      <h2>⏸️ PAUSED</h2>
+      <div class="menu-buttons">
+        <button class="btn" data-action="resume">▶ Resume</button>
+        <button class="btn secondary" data-action="restart">🔄 Restart</button>
+        <button class="btn ghost" data-action="settings">⚙️ Settings</button>
+        <button class="btn danger" data-action="quit">🏠 Main Menu</button>
+      </div>
+    </div>
+
+    <!-- Shop -->
+    <div class="overlay" id="shopScreen">
+      <h2>💎 UPGRADE SHOP 💎</h2>
+      <div class="coins-display">💰 <span id="shopCoins">0</span></div>
+      <div class="tabs">
+        <div class="tab active" data-tab="upgrades">Upgrades</div>
+        <div class="tab" data-tab="skills">Skill Tree</div>
+      </div>
+      <div class="upgrade-list scrollbar" id="upgradeList"></div>
+      <button class="btn" data-action="back" style="margin-top:10px;">← Back</button>
+    </div>
+
+    <!-- Prestige -->
+    <div class="overlay" id="prestigeScreen">
+      <h2>⭐ PRESTIGE ⭐</h2>
+      <div class="prestige-info">
+        <h3>Prestige Level: <span id="prestigeLevel">0</span></h3>
+        <p>Current Bonus: <span id="prestigeBonus">0</span>% score boost</p>
+        <p>Crystals: <span id="prestigeCrystals">0</span> ⭐</p>
+        <p style="font-size:11px; color:#aaa; margin-top:8px;">
+          Reset your progress to earn Prestige Crystals based on your best score.<br>
+          Each crystal gives +5% permanent score bonus!
+        </p>
+        <p style="font-size:11px; color:#ff00ff;">
+          Crystals available: <span id="prestigeAvailable">0</span> ⭐
+        </p>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn gold" data-action="doPrestige">⭐ Prestige Now</button>
+        <button class="btn ghost" data-action="back">← Back</button>
+      </div>
+    </div>
+
+    <!-- Skins -->
+    <div class="overlay" id="skinsScreen">
+      <h2>🎨 SNOWBALL SKINS 🎨</h2>
+      <div class="coins-display">💰 <span id="skinsCoins">0</span></div>
+      <div class="skin-grid" id="skinGrid"></div>
+      <button class="btn" data-action="back" style="margin-top:12px;">← Back</button>
+    </div>
+
+    <!-- Challenges -->
+    <div class="overlay" id="challengesScreen">
+      <h2>📋 DAILY CHALLENGES 📋</h2>
+      <div style="color:#aaa; font-size:11px; margin-bottom:10px;">
+        Resets in: <span id="challengeReset">--:--:--</span>
+      </div>
+      <div class="scrollable scrollbar" id="challengeList"></div>
+      <button class="btn" data-action="back" style="margin-top:10px;">← Back</button>
+    </div>
+
+    <!-- Settings -->
+    <div class="overlay" id="settingsScreen">
+      <h2>⚙️ SETTINGS</h2>
+      <div style="width:100%; max-width:420px;">
+        <div class="setting-row"><span>🔊 Sound Effects</span><div class="toggle on" data-setting="sound"></div></div>
+        <div class="setting-row"><span>✨ Particle Quality</span><div class="toggle on" data-setting="particles"></div></div>
+        <div class="setting-row"><span>📳 Screen Shake</span><div class="toggle on" data-setting="shake"></div></div>
+        <div class="setting-row"><span>🌫️ Screen Effects</span><div class="toggle on" data-setting="effects"></div></div>
+        <div class="setting-row"><span>🎯 Show FPS</span><div class="toggle" data-setting="fps"></div></div>
+        <div class="setting-row"><span>📱 Touch Controls</span><div class="toggle" data-setting="touch"></div></div>
+        <div class="setting-row"><span>👻 Show Ghost</span><div class="toggle on" data-setting="ghost"></div></div>
+        <div class="setting-row" style="flex-direction:column; align-items:stretch;">
+          <span style="margin-bottom:6px;">💾 Save Data</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn small ghost" data-action="export">📤 Export</button>
+            <button class="btn small ghost" data-action="import">📥 Import</button>
+            <button class="btn small danger" data-action="reset">🗑️ Reset All</button>
+          </div>
+        </div>
+        <div class="setting-row" style="flex-direction:column; align-items:stretch;">
+          <span style="margin-bottom:6px;">🎮 Controls</span>
+          <div style="font-size:11px; color:#aaa; line-height:1.6;">
+            <b>← → / A D</b> — Move<br>
+            <b>SHIFT</b> — Dash<br>
+            <b>Q</b> — Ultimate (when charged)<br>
+            <b>ESC / P</b> — Pause<br>
+            <b>SPACE</b> — Start / Confirm
+          </div>
+        </div>
+      </div>
+      <button class="btn" data-action="back" style="margin-top:10px;">← Back</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="overlay" id="statsScreen">
+      <h2>📊 STATISTICS</h2>
+      <div class="stat-grid" id="statsGrid"></div>
+      <button class="btn" data-action="back">← Back</button>
+    </div>
+
+    <!-- Achievements -->
+    <div class="overlay" id="achievementsScreen">
+      <h2>🏆 ACHIEVEMENTS</h2>
+      <div style="color:#ffd700; margin-bottom:8px;">
+        <span id="achCount">0</span> / <span id="achTotal">0</span> Unlocked
+      </div>
+      <div class="achievement-list scrollbar" id="achievementList"></div>
+      <button class="btn" data-action="back" style="margin-top:10px;">← Back</button>
+    </div>
+
+    <!-- How to play -->
+    <div class="overlay" id="howtoScreen">
+      <h2>❓ HOW TO PLAY</h2>
+      <div style="max-width:450px; line-height:1.6; font-size:13px; text-align:left;">
+        <p><b style="color:#00ffff;">🎯 Goal:</b> Roll your snowball to the bottom with the biggest size and highest score!</p>
+        <p><b style="color:#00ffff;">💎 Crystals:</b> Collect to grow and score. Rarer = more points!</p>
+        <p><b style="color:#ff0066;">⚠️ Obstacles:</b> Avoid dark crystals — they shrink you and cost lives.</p>
+        <p><b style="color:#ffff00;">⚡ Dash:</b> SHIFT to dash through obstacles.</p>
+        <p><b style="color:#ff00ff;">💥 Ultimate:</b> Collect crystals to charge. Q to destroy nearby obstacles!</p>
+        <p><b style="color:#00ff00;">🛡️ Power-ups:</b> Shield, Magnet, Speed, Multiplier, Life, Slow-Mo.</p>
+        <p><b style="color:#ff0000;">👹 Bosses:</b> Each biome has a unique boss. Dash or ultimate to damage!</p>
+        <p><b style="color:#ffd700;">💰 Coins:</b> Spend in shop for permanent upgrades.</p>
+        <p><b style="color:#ff8800;">⭐ Prestige:</b> Reset for permanent score bonuses!</p>
+        <p><b style="color:#ff00ff;">💥 Critical Hits:</b> Random chance for 2x damage on obstacles!</p>
+        <p><b style="color:#00ffff;">📏 Size Matters:</b> Bigger ball = stronger dash, bigger ultimate!</p>
+      </div>
+      <button class="btn" data-action="back" style="margin-top:10px;">← Back</button>
+    </div>
+
+    <!-- Game over -->
+    <div class="overlay" id="gameOverScreen">
+      <h2 id="gameOverTitle">💀 SHATTERED!</h2>
+      <div class="stat-grid" id="gameOverStats"></div>
+      <div id="gameOverBonuses" style="color:#ffd700; margin-bottom:10px; font-size:13px; text-align:center;"></div>
+      <div class="menu-buttons">
+        <button class="btn" data-action="shop">💎 Upgrades</button>
+        <button class="btn secondary" data-action="restart">🔄 Play Again</button>
+        <button class="btn ghost" data-action="quit">🏠 Main Menu</button>
+      </div>
+    </div>
+
+    <!-- Tutorial -->
+    <div class="overlay" id="tutorialScreen">
+      <h2>👋 Welcome!</h2>
+      <div style="max-width:400px; text-align:center; line-height:1.6;">
+        <p style="font-size:15px;">Roll your crystal snowball down the hill!</p>
+        <p><b style="color:#00ffff;">← →</b> or <b style="color:#00ffff;">A D</b> to move</p>
+        <p><b style="color:#ffff00;">SHIFT</b> to dash through obstacles</p>
+        <p><b style="color:#ff00ff;">Q</b> for ultimate when charged</p>
+        <p style="color:#aaa; font-size:11px; margin-top:10px;">Tip: On mobile, use the on-screen buttons!</p>
+      </div>
+      <button class="btn" data-action="play" style="margin-top:15px;">Let's Go!</button>
+    </div>
+  </div>
+  <div class="controls-hint" id="controlsHint">Press SPACE to start • ESC to pause</div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   SAVE MANAGER
+   ============================================================ */
+const SaveManager = {
+  KEY: 'crystalSnowball_v3',
+  data: null,
+  load() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      this.data = raw ? JSON.parse(raw) : this.defaults();
+      // Migrate missing fields
+      const def = this.defaults();
+      for (const k in def) if (!(k in this.data)) this.data[k] = def[k];
+      for (const k in def.upgrades) if (!(k in this.data.upgrades)) this.data.upgrades[k] = def.upgrades[k];
+      for (const k in def.skills) if (!(k in this.data.skills)) this.data.skills[k] = def.skills[k];
+      for (const k in def.stats) if (!(k in this.data.stats)) this.data.stats[k] = def.stats[k];
+    } catch (e) { this.data = this.defaults(); }
+    return this.data;
+  },
+  defaults() {
+    return {
+      coins: 0, bestScore: 0, bestSize: 0, firstRun: true,
+      selectedMode: 'classic', selectedSkin: 'default',
+      prestige: { level: 0, crystals: 0 },
+      upgrades: {
+        maxLives:     { level: 0, max: 5, cost: 50,  name: '❤️ Extra Life',     desc: '+1 max life' },
+        dashSpeed:    { level: 0, max: 3, cost: 75,  name: '⚡ Faster Dash',    desc: 'Dash lasts longer' },
+        magnetRange:  { level: 0, max: 3, cost: 100, name: '🧲 Better Magnet',  desc: 'Magnet range +50' },
+        ultimatePower:{ level: 0, max: 3, cost: 150, name: '💥 Stronger Ult',   desc: 'Ultimate lasts longer' },
+        coinValue:    { level: 0, max: 3, cost: 80,  name: '💰 Coin Master',    desc: 'Coins worth more' },
+        startSize:    { level: 0, max: 3, cost: 120, name: '⚪ Bigger Start',   desc: 'Start larger' },
+        critChance:   { level: 0, max: 5, cost: 200, name: '🎯 Crit Chance',    desc: '+5% crit chance' }
+      },
+      skills: {
+        snowTrail:    { level: 0, max: 1, cost: 300, name: '🌨️ Snow Trail',    desc: 'Trail damages small obstacles' },
+        crystalAura:  { level: 0, max: 1, cost: 400, name: '✨ Crystal Aura',   desc: 'Passive magnet always on' },
+        thickIce:     { level: 0, max: 1, cost: 350, name: '🧊 Thick Ice',     desc: 'Lose less size on hits' },
+        luckyFind:    { level: 0, max: 1, cost: 500, name: '🍀 Lucky Find',    desc: 'More rare crystals' },
+        comboMaster:  { level: 0, max: 1, cost: 450, name: '⚡ Combo Master',  desc: 'Combo timer lasts longer' }
+      },
+      stats: {
+        totalRuns: 0, totalDistance: 0, totalCrystals: 0, totalCoins: 0,
+        totalScore: 0, bossesDefeated: 0, maxCombo: 0, playTime: 0,
+        critsLanded: 0, totalDamage: 0, endlessBest: 0, dailyBest: 0,
+        prestigeCount: 0
+      },
+      achievements: {},
+      skins: { default: true },
+      challenges: { date: '', completed: [], progress: {} },
+      settings: {
+        sound: true, particles: true, shake: true, effects: true,
+        fps: false, touch: false, ghost: true
+      },
+      ghost: null // best run data
+    };
+  },
+  save() {
+    try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); }
+    catch (e) { console.warn('Save failed', e); }
+  },
+  export() { return btoa(JSON.stringify(this.data)); },
+  import(str) {
+    try {
+      this.data = JSON.parse(atob(str));
+      this.save();
+      return true;
+    } catch (e) { return false; }
+  },
+  reset() {
+    localStorage.removeItem(this.KEY);
+    this.data = this.defaults();
+    this.save();
+  }
+};
+
+const Settings = {
+  get(key) { return SaveManager.data.settings[key]; },
+  set(key, value) {
+    SaveManager.data.settings[key] = value;
+    SaveManager.save();
+    this.apply();
+  },
+  apply() {
+    document.querySelectorAll('[data-setting]').forEach(el => {
+      el.classList.toggle('on', !!SaveManager.data.settings[el.dataset.setting]);
+    });
+    const tc = document.getElementById('touchControls');
+    if (SaveManager.data.settings.touch) tc.style.display = 'flex';
+    else tc.classList.toggle('auto', true);
+    document.getElementById('fps').style.display = SaveManager.data.settings.fps ? 'block' : 'none';
+  }
+};
+
+const AudioManager = {
+  ctx: null, enabled: true,
+  init() {
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { this.ctx = null; }
+  },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  play(freq, duration, type = 'sine', volume = 0.2) {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.connect(gain); gain.connect(this.ctx.destination);
+      osc.type = type; osc.frequency.value = freq;
+      const t = this.ctx.currentTime;
+      gain.gain.setValueAtTime(volume, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      osc.start(t); osc.stop(t + duration);
+    } catch (e) {}
+  },
+  collect() { this.play(800, 0.08); setTimeout(() => this.play(1200, 0.08), 40); },
+  hit() { this.play(180, 0.2, 'sawtooth', 0.25); },
+  crit() { this.play(1500, 0.15, 'square', 0.3); setTimeout(() => this.play(2000, 0.1, 'square', 0.3), 50); },
+  powerup() {
+    this.play(600, 0.08);
+    setTimeout(() => this.play(900, 0.08), 80);
+    setTimeout(() => this.play(1200, 0.08), 160);
+  },
+  ultimate() {
+    for (let i = 0; i < 5; i++) setTimeout(() => this.play(400 + i * 100, 0.12, 'sawtooth', 0.25), i * 40);
+  },
+  dash() { this.play(500, 0.12, 'triangle', 0.2); },
+  coin() { this.play(700, 0.06, 'square', 0.15); },
+  menu() { this.play(440, 0.08, 'sine', 0.15); },
+  prestige() {
+    for (let i = 0; i < 8; i++) setTimeout(() => this.play(300 + i * 150, 0.15, 'sine', 0.25), i * 60);
+  }
+};
+
+const Stats = {
+  add(key, amount = 1) { SaveManager.data.stats[key] = (SaveManager.data.stats[key] || 0) + amount; },
+  get(key) { return SaveManager.data.stats[key] || 0; }
+};
+
+const Achievements = {
+  list: [
+    { id: 'first_run', name: 'First Steps', desc: 'Complete your first run', icon: '🎯' },
+    { id: 'score_1000', name: 'Crystal Collector', desc: 'Score 1000 points', icon: '💎' },
+    { id: 'score_5000', name: 'Crystal Master', desc: 'Score 5000 points', icon: '💠' },
+    { id: 'score_20000', name: 'Crystal God', desc: 'Score 20000 points', icon: '👑' },
+    { id: 'boss_slayer', name: 'Boss Slayer', desc: 'Defeat any boss', icon: '👹' },
+    { id: 'bosses_5', name: 'Champion', desc: 'Defeat 5 bosses', icon: '🏆' },
+    { id: 'bosses_all', name: 'Conqueror', desc: 'Defeat all 4 boss types', icon: '🗡️' },
+    { id: 'combo_10', name: 'Combo Starter', desc: 'Reach 10x combo', icon: '⚡' },
+    { id: 'combo_25', name: 'Combo Master', desc: 'Reach 25x combo', icon: '💫' },
+    { id: 'combo_50', name: 'Combo Legend', desc: 'Reach 50x combo', icon: '🌟' },
+    { id: 'combo_100', name: 'Combo God', desc: 'Reach 100x combo', icon: '🔥' },
+    { id: 'rainbow', name: 'Rainbow Hunter', desc: 'Collect a rainbow crystal', icon: '🌈' },
+    { id: 'legendary', name: 'Legendary Find', desc: 'Collect a legendary crystal', icon: '✨' },
+    { id: 'big_ball', name: 'Mega Ball', desc: 'Reach size 70', icon: '⚪' },
+    { id: 'huge_ball', name: 'Colossal Ball', desc: 'Reach size 80', icon: '🌕' },
+    { id: 'distance_5k', name: 'Marathon', desc: 'Travel 5000m in one run', icon: '🏃' },
+    { id: 'distance_10k', name: 'Ultra Marathon', desc: 'Travel 10000m in one run', icon: '🏅' },
+    { id: 'endless_10k', name: 'Endless Endurance', desc: 'Travel 10000m in Endless mode', icon: '♾️' },
+    { id: 'coins_500', name: 'Wealthy', desc: 'Collect 500 total coins', icon: '💰' },
+    { id: 'coins_5000', name: 'Rich', desc: 'Collect 5000 total coins', icon: '💵' },
+    { id: 'runs_10', name: 'Dedicated', desc: 'Complete 10 runs', icon: '🔁' },
+    { id: 'runs_50', name: 'Addicted', desc: 'Complete 50 runs', icon: '🎮' },
+    { id: 'full_upgrade', name: 'Maxed Out', desc: 'Max out any upgrade', icon: '⭐' },
+    { id: 'no_hit', name: 'Untouchable', desc: 'Finish without losing a life', icon: '🛡️' },
+    { id: 'speed_demon', name: 'Speed Demon', desc: 'Use dash 50 times in one run', icon: '💨' },
+    { id: 'crit_master', name: 'Crit Master', desc: 'Land 25 critical hits total', icon: '🎯' },
+    { id: 'prestige_1', name: 'Ascended', desc: 'Prestige for the first time', icon: '🌠' },
+    { id: 'prestige_5', name: 'Transcendent', desc: 'Reach prestige level 5', icon: '💫' },
+    { id: 'daily_complete', name: 'Daily Hero', desc: 'Complete a daily challenge', icon: '📅' },
+    { id: 'all_modes', name: 'Mode Master', desc: 'Play all 3 game modes', icon: '🎭' },
+    { id: 'skin_collector', name: 'Fashionista', desc: 'Unlock 3 skins', icon: '🎨' }
+  ],
+  unlock(id) {
+    if (SaveManager.data.achievements[id]) return false;
+    SaveManager.data.achievements[id] = Date.now();
+    SaveManager.save();
+    const ach = this.list.find(a => a.id === id);
+    if (ach) UI.toast(`🏆 ${ach.icon} ${ach.name} Unlocked!`);
+    AudioManager.powerup();
+    return true;
+  },
+  isUnlocked(id) { return !!SaveManager.data.achievements[id]; },
+  checkRunStats(s) {
+    if (s.score >= 1000) this.unlock('score_1000');
+    if (s.score >= 5000) this.unlock('score_5000');
+    if (s.score >= 20000) this.unlock('score_20000');
+    if (s.bossDefeated) this.unlock('boss_slayer');
+    if (Stats.get('bossesDefeated') >= 5) this.unlock('bosses_5');
+    if (s.bossTypes && s.bossTypes.size >= 4) this.unlock('bosses_all');
+    if (s.maxCombo >= 10) this.unlock('combo_10');
+    if (s.maxCombo >= 25) this.unlock('combo_25');
+    if (s.maxCombo >= 50) this.unlock('combo_50');
+    if (s.maxCombo >= 100) this.unlock('combo_100');
+    if (s.rainbowCount > 0) this.unlock('rainbow');
+    if (s.legendaryCount > 0) this.unlock('legendary');
+    if (s.finalSize >= 70) this.unlock('big_ball');
+    if (s.finalSize >= 80) this.unlock('huge_ball');
+    if (s.distance >= 5000) this.unlock('distance_5k');
+    if (s.distance >= 10000) this.unlock('distance_10k');
+    if (s.mode === 'endless' && s.distance >= 10000) this.unlock('endless_10k');
+    if (Stats.get('totalCoins') >= 500) this.unlock('coins_500');
+    if (Stats.get('totalCoins') >= 5000) this.unlock('coins_5000');
+    if (Stats.get('totalRuns') >= 10) this.unlock('runs_10');
+    if (Stats.get('totalRuns') >= 50) this.unlock('runs_50');
+    if (s.livesLost === 0 && s.distance >= 10000) this.unlock('no_hit');
+    if (s.dashCount >= 50) this.unlock('speed_demon');
+    if (Stats.get('critsLanded') >= 25) this.unlock('crit_master');
+    if (SaveManager.data.prestige.level >= 1) this.unlock('prestige_1');
+    if (SaveManager.data.prestige.level >= 5) this.unlock('prestige_5');
+    for (const k in SaveManager.data.upgrades) {
+      const u = SaveManager.data.upgrades[k];
+      if (u.level >= u.max) { this.unlock('full_upgrade'); break; }
+    }
+    const owned = Object.values(SaveManager.data.skins).filter(v => v).length;
+    if (owned >= 3) this.unlock('skin_collector');
+  }
+};
+
+/* ============================================================
+   DAILY CHALLENGES
+   ============================================================ */
+const Challenges = {
+  pool: [
+    { id: 'score_500', name: 'Score Hunter', desc: 'Score 500 points', target: 500, type: 'score', reward: 50 },
+    { id: 'score_2000', name: 'High Scorer', desc: 'Score 2000 points', target: 2000, type: 'score', reward: 150 },
+    { id: 'crystals_20', name: 'Crystal Gatherer', desc: 'Collect 20 crystals', target: 20, type: 'crystals', reward: 75 },
+    { id: 'crystals_50', name: 'Crystal Hoarder', desc: 'Collect 50 crystals', target: 50, type: 'crystals', reward: 200 },
+    { id: 'combo_15', name: 'Combo King', desc: 'Reach 15x combo', target: 15, type: 'combo', reward: 100 },
+    { id: 'distance_3000', name: 'Long Runner', desc: 'Travel 3000m', target: 3000, type: 'distance', reward: 100 },
+    { id: 'distance_7000', name: 'Marathon Runner', desc: 'Travel 7000m', target: 7000, type: 'distance', reward: 250 },
+    { id: 'boss_kill', name: 'Boss Killer', desc: 'Defeat the boss', target: 1, type: 'boss', reward: 150 },
+    { id: 'no_hit_2000', name: 'Untouchable', desc: 'Travel 2000m without losing life', target: 2000, type: 'noHit', reward: 200 },
+    { id: 'rainbow_1', name: 'Rainbow Seeker', desc: 'Collect 1 rainbow crystal', target: 1, type: 'rainbow', reward: 175 },
+    { id: 'dash_20', name: 'Dash Master', desc: 'Use dash 20 times', target: 20, type: 'dash', reward: 100 },
+    { id: 'crit_5', name: 'Critical Strike', desc: 'Land 5 critical hits', target: 5, type: 'crit', reward: 125 }
+  ],
+  getToday() {
+    const today = new Date().toISOString().slice(0, 10);
+    const data = SaveManager.data.challenges;
+    if (data.date !== today) {
+      // Generate 3 daily challenges using date as seed
+      const seed = today.split('-').join('');
+      const shuffled = [...this.pool].sort((a, b) => {
+        const ha = this.hash(seed + a.id);
+        const hb = this.hash(seed + b.id);
+        return ha - hb;
+      });
+      data.date = today;
+      data.completed = [];
+      data.progress = {};
+      data.todayIds = shuffled.slice(0, 3).map(c => c.id);
+      SaveManager.save();
+    }
+    return data.todayIds.map(id => this.pool.find(c => c.id === id));
+  },
+  hash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = ((h << 5) - h) + str.charCodeAt(i) | 0;
+    return Math.abs(h);
+  },
+  updateProgress(type, value) {
+    const data = SaveManager.data.challenges;
+    const today = this.getToday();
+    for (const ch of today) {
+      if (data.completed.includes(ch.id)) continue;
+      if (ch.type !== type) continue;
+      data.progress[ch.id] = Math.max(data.progress[ch.id] || 0, value);
+      if (data.progress[ch.id] >= ch.target) {
+        data.completed.push(ch.id);
+        SaveManager.data.coins += ch.reward;
+        Stats.add('totalCoins', ch.reward);
+        UI.toast(`📋 Challenge Complete! +${ch.reward} 💰`);
+        Achievements.unlock('daily_complete');
+      }
+    }
+    SaveManager.save();
+  },
+  timeUntilReset() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setHours(24, 0, 0, 0);
+    const diff = tomorrow - now;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+};
+
+/* ============================================================
+   PRESTIGE
+   ============================================================ */
+const Prestige = {
+  availableCrystals() {
+    const best = SaveManager.data.bestScore;
+    return Math.floor(Math.sqrt(best / 100));
+  },
+  canPrestige() {
+    return this.availableCrystals() > SaveManager.data.prestige.crystals;
+  },
+  doPrestige() {
+    const newCrystals = this.availableCrystals();
+    if (newCrystals <= SaveManager.data.prestige.crystals) return false;
+    const gained = newCrystals - SaveManager.data.prestige.crystals;
+    SaveManager.data.prestige.crystals = newCrystals;
+    SaveManager.data.prestige.level++;
+    Stats.add('prestigeCount');
+    // Reset progress but keep prestige, skins, achievements
+    SaveManager.data.coins = 0;
+    SaveManager.data.bestScore = 0;
+    SaveManager.data.bestSize = 0;
+    for (const k in SaveManager.data.upgrades) SaveManager.data.upgrades[k].level = 0;
+    for (const k in SaveManager.data.skills) SaveManager.data.skills[k].level = 0;
+    SaveManager.save();
+    AudioManager.prestige();
+    Achievements.unlock('prestige_1');
+    if (SaveManager.data.prestige.level >= 5) Achievements.unlock('prestige_5');
+    return { gained, total: newCrystals };
+  },
+  scoreMultiplier() {
+    return 1 + SaveManager.data.prestige.crystals * 0.05;
+  }
+};
+
+/* ============================================================
+   FRACTAL CACHE
+   ============================================================ */
+const FractalCache = {
+  cache: new Map(),
+  key(type, size, color, depth) { return `${type}_${Math.round(size)}_${color}_${depth}`; },
+  get(type, size, color, depth) {
+    const k = this.key(type, size, color, depth);
+    if (this.cache.has(k)) return this.cache.get(k);
+    const s = Math.ceil(size * 2.5);
+    const cvs = document.createElement('canvas');
+    cvs.width = s; cvs.height = s;
+    const c = cvs.getContext('2d');
+    c.translate(s / 2, s / 2);
+    c.strokeStyle = color;
+    c.lineWidth = Math.max(1, size / 20);
+    c.lineCap = 'round';
+    if (type === 0) this.drawSnowflake(c, size, depth);
+    else if (type === 1) this.drawKoch(c, size, depth);
+    else this.drawDendritic(c, size, depth);
+    this.cache.set(k, cvs);
+    if (this.cache.size > 250) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    return cvs;
+  },
+  drawSnowflake(c, size, depth) {
+    for (let i = 0; i < 6; i++) {
+      c.save(); c.rotate((i / 6) * Math.PI * 2);
+      this.branch(c, 0, 0, size, depth); c.restore();
+    }
+  },
+  branch(c, x, y, len, d) {
+    if (d === 0 || len < 2) return;
+    const ex = x, ey = y - len;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(ex, ey); c.stroke();
+    const bl = len * 0.5;
+    c.save(); c.translate(ex, ey); c.rotate(Math.PI / 3);
+    this.branch(c, 0, 0, bl, d - 1); c.restore();
+    c.save(); c.translate(ex, ey); c.rotate(-Math.PI / 3);
+    this.branch(c, 0, 0, bl, d - 1); c.restore();
+  },
+  drawKoch(c, size, iter) {
+    const pts = [];
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 - Math.PI / 2;
+      pts.push({ x: Math.cos(a) * size, y: Math.sin(a) * size });
+    }
+    c.beginPath();
+    for (let i = 0; i < 3; i++) {
+      this.kochCurve(c, pts[i].x, pts[i].y, pts[(i+1)%3].x, pts[(i+1)%3].y, iter, i === 0);
+    }
+    c.stroke();
+  },
+  kochCurve(c, x1, y1, x2, y2, it, mv) {
+    if (it === 0) { if (mv) c.moveTo(x1, y1); c.lineTo(x2, y2); return; }
+    const dx = x2 - x1, dy = y2 - y1;
+    const p1 = { x: x1 + dx/3, y: y1 + dy/3 };
+    const p3 = { x: x1 + dx*2/3, y: y1 + dy*2/3 };
+    const p2 = { x: (x1+x2)/2 - dy/3, y: (y1+y2)/2 + dx/3 };
+    this.kochCurve(c, x1, y1, p1.x, p1.y, it-1, mv);
+    this.kochCurve(c, p1.x, p1.y, p2.x, p2.y, it-1, false);
+    this.kochCurve(c, p2.x, p2.y, p3.x, p3.y, it-1, false);
+    this.kochCurve(c, p3.x, p3.y, x2, y2, it-1, false);
+  },
+  drawDendritic(c, size, depth) {
+    for (let i = 0; i < 6; i++) {
+      c.save(); c.rotate((i / 6) * Math.PI * 2);
+      this.dendrite(c, 0, 0, size, depth); c.restore();
+    }
+  },
+  dendrite(c, x, y, len, d) {
+    if (d === 0 || len < 3) return;
+    const ex = x, ey = y - len;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(ex, ey); c.stroke();
+    const bl = len * 0.4;
+    [0.3, 0.6].forEach(pos => {
+      const by = y - len * pos;
+      c.save(); c.translate(x, by); c.rotate(Math.PI/4);
+      this.dendrite(c, 0, 0, bl, d-1); c.restore();
+      c.save(); c.translate(x, by); c.rotate(-Math.PI/4);
+      this.dendrite(c, 0, 0, bl, d-1); c.restore();
+    });
+  },
+  drawCached(ctx, type, x, y, size, color, depth = 2) {
+    const cvs = this.get(type, size, color, depth);
+    ctx.drawImage(cvs, x - cvs.width/2, y - cvs.height/2);
+  }
+};
+
+/* ============================================================
+   SKINS
+   ============================================================ */
+const Skins = {
+  list: [
+    { id: 'default',  name: 'Classic',      colors: ['#ffffff', '#00ffff', '#ff00ff', '#4a00e0'], cost: 0 },
+    { id: 'fire',     name: 'Inferno',      colors: ['#ffff00', '#ff8800', '#ff0000', '#660000'], cost: 300 },
+    { id: 'nature',   name: 'Emerald',      colors: ['#ffffff', '#00ff88', '#00aa44', '#004422'], cost: 400 },
+    { id: 'void',     name: 'Void Walker',  colors: ['#ff00ff', '#8800ff', '#4400aa', '#000000'], cost: 500 },
+    { id: 'gold',     name: 'Golden',       colors: ['#ffffff', '#ffff00', '#ffaa00', '#886600'], cost: 750 },
+    { id: 'rainbow',  name: 'Prismatic',    colors: ['#ff0000', '#ffff00', '#00ff00', '#0000ff'], cost: 1000, rainbow: true },
+    { id: 'ice',      name: 'Frost',        colors: ['#ffffff', '#aaddff', '#6699ff', '#224488'], cost: 350 },
+    { id: 'shadow',   name: 'Shadow',       colors: ['#aaaaaa', '#444444', '#222222', '#000000'], cost: 600 }
+  ],
+  get(id) { return this.list.find(s => s.id === id) || this.list[0]; },
+  isOwned(id) { return !!SaveManager.data.skins[id]; },
+  buy(id) {
+    const skin = this.get(id);
+    if (!skin || this.isOwned(id)) return false;
+    if (SaveManager.data.coins < skin.cost) return false;
+    SaveManager.data.coins -= skin.cost;
+    SaveManager.data.skins[id] = true;
+    SaveManager.save();
+    return true;
+  }
+};
+
+/* ============================================================
+   UI
+   ============================================================ */
+const UI = {
+  screens: ['menuScreen','pauseScreen','shopScreen','settingsScreen','statsScreen',
+            'achievementsScreen','howtoScreen','gameOverScreen','tutorialScreen',
+            'prestigeScreen','skinsScreen','challengesScreen'],
+  show(id) {
+    this.screens.forEach(s => document.getElementById(s).classList.remove('active'));
+    if (id) document.getElementById(id).classList.add('active');
+  },
+  toast(msg, duration = 2500) {
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    document.getElementById('gameWrapper').appendChild(t);
+    setTimeout(() => t.remove(), duration);
+  },
+  updateMenu() {
+    document.getElementById('menuCoins').textContent = SaveManager.data.coins;
+    const pl = SaveManager.data.prestige.level;
+    const pb = SaveManager.data.prestige.crystals * 5;
+    document.getElementById('menuPrestige').textContent =
+      pl > 0 ? `⭐ Prestige ${pl} • +${pb}% score` : '';
+    // Highlight selected mode
+    document.querySelectorAll('.mode-card').forEach(c => {
+      c.classList.toggle('selected', c.dataset.mode === SaveManager.data.selectedMode);
+    });
+  },
+  renderShop(tab = 'upgrades') {
+    const list = document.getElementById('upgradeList');
+    document.getElementById('shopCoins').textContent = SaveManager.data.coins;
+    list.innerHTML = '';
+    document.querySelectorAll('#shopScreen .tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    const source = tab === 'upgrades' ? SaveManager.data.upgrades : SaveManager.data.skills;
+    for (const key in source) {
+      const u = source[key];
+      const maxed = u.level >= u.max;
+      const afford = SaveManager.data.coins >= u.cost;
+      const div = document.createElement('div');
+      div.className = 'upgrade' + (maxed ? ' maxed' : '') + (!afford && !maxed ? ' cant-afford' : '');
+      div.innerHTML = `
+        <div class="upgrade-info">
+          <div class="upgrade-name">${u.name}</div>
+          <div class="upgrade-desc">${u.desc}</div>
+          <div class="upgrade-level">Level ${u.level} / ${u.max}</div>
+        </div>
+        <div class="upgrade-cost">${maxed ? 'MAX' : '💰 ' + u.cost}</div>
+      `;
+      if (!maxed && afford) {
+        div.addEventListener('click', () => {
+          SaveManager.data.coins -= u.cost;
+          u.level++;
+          u.cost = Math.floor(u.cost * 1.6);
+          SaveManager.save();
+          AudioManager.menu();
+          this.renderShop(tab);
+        });
+      }
+      list.appendChild(div);
+    }
+  },
+  renderPrestige() {
+    const avail = Prestige.availableCrystals();
+    const current = SaveManager.data.prestige.crystals;
+    const gained = Math.max(0, avail - current);
+    document.getElementById('prestigeLevel').textContent = SaveManager.data.prestige.level;
+    document.getElementById('prestigeBonus').textContent = current * 5;
+    document.getElementById('prestigeCrystals').textContent = current;
+    document.getElementById('prestigeAvailable').textContent =
+      gained > 0 ? `+${gained} (total ${avail})` : `0 (need ${Math.pow(current + 1, 2) * 100} score)`;
+  },
+  renderSkins() {
+    const grid = document.getElementById('skinGrid');
+    document.getElementById('skinsCoins').textContent = SaveManager.data.coins;
+    grid.innerHTML = '';
+    for (const skin of Skins.list) {
+      const owned = Skins.isOwned(skin.id);
+      const selected = SaveManager.data.selectedSkin === skin.id;
+      const card = document.createElement('div');
+      card.className = 'skin-card' + (selected ? ' selected' : '') + (!owned ? ' locked' : '');
+      const gradColors = skin.rainbow
+        ? 'conic-gradient(red, orange, yellow, green, blue, indigo, violet, red)'
+        : `linear-gradient(135deg, ${skin.colors.join(', ')})`;
+      card.innerHTML = `
+        <div class="skin-preview" style="background: ${gradColors};"></div>
+        <div class="skin-name">${skin.name}</div>
+        <div class="skin-cost">${owned ? (selected ? '✓ Equipped' : 'Click to equip') : '💰 ' + skin.cost}</div>
+      `;
+      card.addEventListener('click', () => {
+        if (owned) {
+          SaveManager.data.selectedSkin = skin.id;
+          SaveManager.save();
+          AudioManager.menu();
+          this.renderSkins();
+        } else {
+          if (Skins.buy(skin.id)) {
+            SaveManager.data.selectedSkin = skin.id;
+            SaveManager.save();
+            AudioManager.powerup();
+            this.toast(`🎨 Unlocked ${skin.name}!`);
+            this.renderSkins();
+          } else {
+            this.toast('Not enough coins!');
+          }
+        }
+      });
+      grid.appendChild(card);
+    }
+  },
+  renderChallenges() {
+    const list = document.getElementById('challengeList');
+    const today = Challenges.getToday();
+    const data = SaveManager.data.challenges;
+    list.innerHTML = '';
+    for (const ch of today) {
+      const completed = data.completed.includes(ch.id);
+      const progress = data.progress[ch.id] || 0;
+      const card = document.createElement('div');
+      card.className = 'challenge-card' + (completed ? ' completed' : '');
+      card.innerHTML = `
+        <div class="challenge-info">
+          <div class="challenge-name">${completed ? '✅ ' : ''}${ch.name}</div>
+          <div class="challenge-desc">${ch.desc}</div>
+          <div class="challenge-progress">Progress: ${Math.min(progress, ch.target)} / ${ch.target}</div>
+        </div>
+        <div class="challenge-reward">💰 ${ch.reward}</div>
+      `;
+      list.appendChild(card);
+    }
+  },
+  renderStats() {
+    const grid = document.getElementById('statsGrid');
+    const s = SaveManager.data.stats;
+    const items = [
+      ['Best Score', s.bestScore || 0],
+      ['Best Size', Math.round(s.bestSize || 0)],
+      ['Total Runs', s.totalRuns || 0],
+      ['Total Distance', Math.round(s.totalDistance || 0) + 'm'],
+      ['Crystals', s.totalCrystals || 0],
+      ['Total Coins', s.totalCoins || 0],
+      ['Total Score', s.totalScore || 0],
+      ['Bosses Defeated', s.bossesDefeated || 0],
+      ['Max Combo', (s.maxCombo || 0) + 'x'],
+      ['Crits Landed', s.critsLanded || 0],
+      ['Endless Best', Math.round(s.endlessBest || 0) + 'm'],
+      ['Daily Best', s.dailyBest || 0],
+      ['Prestige Level', SaveManager.data.prestige.level],
+      ['Play Time', Math.round((s.playTime || 0) / 60) + 'min']
+    ];
+    grid.innerHTML = items.map(([l, v]) =>
+      `<div class="stat-card"><div class="stat-value">${v}</div><div class="stat-label">${l}</div></div>`
+    ).join('');
+  },
+  renderAchievements() {
+    const list = document.getElementById('achievementList');
+    const unlocked = Achievements.list.filter(a => Achievements.isUnlocked(a.id));
+    document.getElementById('achCount').textContent = unlocked.length;
+    document.getElementById('achTotal').textContent = Achievements.list.length;
+    list.innerHTML = Achievements.list.map(a => {
+      const is = Achievements.isUnlocked(a.id);
+      return `<div class="achievement ${is ? 'unlocked' : 'locked'}">
+        <div class="achievement-icon">${is ? a.icon : '🔒'}</div>
+        <div class="achievement-info">
+          <div class="achievement-name">${a.name}</div>
+          <div class="achievement-desc">${a.desc}</div>
+        </div>
+      </div>`;
+    }).join('');
+  },
+  showGameOver(won, stats) {
+    document.getElementById('gameOverTitle').textContent = won ? '🏁 FINISHED!' : '💀 SHATTERED!';
+    const grid = document.getElementById('gameOverStats');
+    const items = [
+      ['Score', stats.score],
+      ['Best', SaveManager.data.bestScore],
+      ['Size', Math.round(stats.size)],
+      ['Distance', Math.round(stats.distance) + 'm'],
+      ['Max Combo', stats.maxCombo + 'x'],
+      ['Coins Earned', stats.coinsEarned],
+      ['Crits', stats.crits],
+      ['Mode', stats.mode]
+    ];
+    grid.innerHTML = items.map(([l, v]) =>
+      `<div class="stat-card"><div class="stat-value">${v}</div><div class="stat-label">${l}</div></div>`
+    ).join('');
+    const bonuses = document.getElementById('gameOverBonuses');
+    const prestigeMult = Prestige.scoreMultiplier();
+    bonuses.innerHTML = prestigeMult > 1
+      ? `⭐ Prestige Bonus: +${Math.round((prestigeMult - 1) * 100)}% score`
+      : '';
+    this.show('gameOverScreen');
+  }
+};
+
+/* ============================================================
+   GAME
+   ============================================================ */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const BIOMES = {
+  ice:     { name: 'Ice Cavern',   colors: ['#00ffff', '#0088ff', '#ffffff'], boss: 'frost' },
+  crystal: { name: 'Crystal Cave', colors: ['#ff00ff', '#ff0088', '#ffaaff'], boss: 'shatter' },
+  aurora:  { name: 'Aurora Peak',  colors: ['#00ff88', '#88ff00', '#ffff00'], boss: 'storm' },
+  void:    { name: 'Void Realm',   colors: ['#ff0066', '#6600ff', '#ff00ff'], boss: 'abyss' }
+};
+
+const BOSSES = {
+  frost:   { name: 'Frost Titan',    color: '#00ffff', pattern: 'spiral',  hp: 100 },
+  shatter: { name: 'Shard Lord',     color: '#ff00ff', pattern: 'burst',   hp: 120 },
+  storm:   { name: 'Aurora Serpent', color: '#00ff88', pattern: 'wave',    hp: 140 },
+  abyss:   { name: 'Void King',      color: '#ff0066', pattern: 'chaos',   hp: 180 }
+};
+
+const POWERUP_TYPES = {
+  SHIELD:     { color: '#00ff00', icon: '🛡️', duration: 300 },
+  MAGNET:     { color: '#ff00ff', icon: '🧲', duration: 400 },
+  SPEED:      { color: '#ffff00', icon: '⚡', duration: 250 },
+  MULTIPLIER: { color: '#ff8800', icon: '✨', duration: 350 },
+  LIFE:       { color: '#ff0000', icon: '❤️', duration: 0 },
+  SLOWMO:     { color: '#00ffff', icon: '⏱️', duration: 300 },
+  CRIT:       { color: '#ffff00', icon: '🎯', duration: 400 }
+};
+
+const CRYSTAL_TYPES = {
+  normal:    { color: '#00ffff', value: 1,  size: 1 },
+  rare:      { color: '#ff00ff', value: 3,  size: 1.2 },
+  legendary: { color: '#ffff00', value: 5,  size: 1.4 },
+  rainbow:   { color: 'rainbow', value: 10, size: 1.6 }
+};
+
+const Game = {
+  state: 'menu',
+  mode: 'classic', // classic, endless, daily
+  snowball: null,
+  obstacles: [], crystals: [], powerups: [], coins: [],
+  particles: [], trail: [],
+  bgStars: [], bgFractals: [], snowParticles: [],
+  bgLayers: [], // parallax
+  hazards: [], checkpoints: [],
+  distance: 0, hillLength: 12000,
+  score: 0, combo: 0, comboTimer: 0, maxCombo: 0,
+  lives: 3, livesLost: 0,
+  currentBiome: 'ice',
+  boss: null, bossActive: false,
+  slowMotion: 0, timeScale: 1,
+  dashCooldown: 0, invincible: 0,
+  ultimateCharge: 0, ultimateActive: 0,
+  critBoost: 0,
+  weather: 'clear', weatherTimer: 300, wind: 0,
+  screenShake: { x: 0, y: 0, intensity: 0 },
+  chromatic: 0, // chromatic aberration intensity
+  achievements: [],
+  dashCount: 0, rainbowCount: 0, legendaryCount: 0, crits: 0,
+  runStartTime: 0,
+  keys: {},
+  touchState: { left: false, right: false, dash: false, ult: false },
+  lastFrame: 0, fps: 0, fpsAccum: 0, fpsFrames: 0,
+  ghostData: null, ghostPlayback: [], ghostFrame: 0,
+  endlessWave: 0,
+  dailyModifiers: {},
+  bossTypesDefeated: new Set(),
+  noHitDistance: 0,
+
+  init() {
+    this.mode = SaveManager.data.selectedMode;
+    const u = SaveManager.data.upgrades;
+    const sk = SaveManager.data.skills;
+    const startRadius = 20 + u.startSize.level * 5;
+    this.snowball = {
+      x: W/2, y: H - 150,
+      radius: startRadius, vx: 0, rotation: 0, glow: 0,
+      shield: 0, magnet: 0, speed: 0, multiplier: 0, dash: 0
+    };
+    this.obstacles = []; this.crystals = []; this.powerups = []; this.coins = [];
+    this.particles = []; this.trail = [];
+    this.hazards = []; this.checkpoints = [];
+    this.distance = 0;
+    this.score = 0; this.combo = 0; this.comboTimer = 0; this.maxCombo = 0;
+    this.lives = 3 + u.maxLives.level;
+    this.livesLost = 0;
+    this.currentBiome = 'ice';
+    this.boss = null; this.bossActive = false;
+    this.slowMotion = 0; this.timeScale = 1;
+    this.dashCooldown = 0; this.invincible = 0;
+    this.ultimateCharge = 0; this.ultimateActive = 0;
+    this.critBoost = 0;
+    this.weather = 'clear'; this.weatherTimer = 300; this.wind = 0;
+    this.screenShake = { x: 0, y: 0, intensity: 0 };
+    this.chromatic = 0;
+    this.achievements = [];
+    this.dashCount = 0; this.rainbowCount = 0; this.legendaryCount = 0; this.crits = 0;
+    this.runStartTime = performance.now();
+    this.endlessWave = 0;
+    this.bossTypesDefeated = new Set();
+    this.noHitDistance = 0;
+    this.ghostPlayback = [];
+    this.ghostFrame = 0;
+    // Load ghost
+    if (Settings.get('ghost') && SaveManager.data.ghost && SaveManager.data.ghost.mode === this.mode) {
+      this.ghostData = SaveManager.data.ghost;
+    } else {
+      this.ghostData = null;
+    }
+    // Mode-specific setup
+    if (this.mode === 'classic') {
+      this.hillLength = 12000;
+    } else if (this.mode === 'endless') {
+      this.hillLength = Infinity;
+    } else if (this.mode === 'daily') {
+      this.hillLength = 8000;
+      this.dailyModifiers = this.getDailyModifiers();
+    }
+    this.generateBackground();
+    this.generateHill();
+  },
+
+  getDailyModifiers() {
+    const today = new Date().toISOString().slice(0, 10);
+    const seed = Challenges.hash(today);
+    const mods = {};
+    const modPool = ['fastScroll', 'moreCrystals', 'moreObstacles', 'bigStart', 'doubleCoins', 'noDash'];
+    const count = 2;
+    for (let i = 0; i < count; i++) {
+      const idx = (seed + i * 137) % modPool.length;
+      mods[modPool[idx]] = true;
+    }
+    return mods;
+  },
+
+  generateBackground() {
+    this.bgStars = [];
+    for (let i = 0; i < 120; i++) {
+      this.bgStars.push({
+        x: Math.random() * W, y: Math.random() * H,
+        size: Math.random() * 2 + 1,
+        twinkle: Math.random() * Math.PI * 2
+      });
+    }
+    this.bgFractals = [];
+    for (let i = 0; i < 20; i++) {
+      this.bgFractals.push({
+        x: Math.random() * W, y: Math.random() * H,
+        size: Math.random() * 30 + 20,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.01,
+        type: Math.floor(Math.random() * 3),
+        color: BIOMES[this.currentBiome].colors[Math.floor(Math.random() * 3)],
+        alpha: Math.random() * 0.25 + 0.08
+      });
+    }
+    this.snowParticles = [];
+    for (let i = 0; i < 35; i++) {
+      this.snowParticles.push({
+        x: Math.random() * W, y: Math.random() * H,
+        size: Math.random() * 3 + 2,
+        speed: Math.random() * 2 + 1,
+        drift: (Math.random() - 0.5) * 0.5,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.05,
+        type: Math.floor(Math.random() * 3)
+      });
+    }
+    // Parallax mountain layers
+    this.bgLayers = [];
+    for (let layer = 0; layer < 3; layer++) {
+      const peaks = [];
+      const count = 6 + layer * 2;
+      for (let i = 0; i <= count; i++) {
+        peaks.push({
+          x: (i / count) * W,
+          y: H * (0.4 + layer * 0.15) + (Math.random() - 0.5) * 80
+        });
+      }
+      this.bgLayers.push({
+        peaks,
+        color: `rgba(${20 + layer * 30}, ${10 + layer * 20}, ${50 + layer * 40}, ${0.4 - layer * 0.1})`,
+        speed: 0.1 + layer * 0.15
+      });
+    }
+  },
+
+  generateHill() {
+    const u = SaveManager.data.upgrades;
+    const sk = SaveManager.data.skills;
+    const mods = this.dailyModifiers;
+    const maxDist = this.mode === 'endless' ? 50000 : this.hillLength;
+    let spacing = 100;
+    if (mods.moreCrystals) spacing *= 0.8;
+    if (mods.moreObstacles) spacing *= 0.85;
+
+    for (let d = 200; d < maxDist; d += spacing) {
+      const r = Math.random();
+
+      // Checkpoints
+      if (d % 2000 === 0 && this.mode !== 'endless') {
+        this.checkpoints.push({ distance: d, activated: false });
+      }
+
+      // Boss in classic/daily at midpoint
+      if (this.mode !== 'endless' && d > this.hillLength/2 - 100 && d < this.hillLength/2 + 100 && !this.bossActive) {
+        this.bossActive = true;
+        const biomeAtMid = this.getBiomeAt(this.hillLength / 2);
+        const bossType = BIOMES[biomeAtMid].boss;
+        const bossInfo = BOSSES[bossType];
+        this.boss = {
+          x: W/2, distance: this.hillLength/2,
+          radius: 60, health: bossInfo.hp, maxHealth: bossInfo.hp,
+          rotation: 0, attackTimer: 0, defeated: false,
+          type: bossType, pattern: bossInfo.pattern,
+          movePhase: Math.random() * Math.PI * 2
+        };
+        continue;
+      }
+
+      // Endless mode: periodic bosses every 5000m
+      if (this.mode === 'endless' && d % 5000 === 0 && d > 0) {
+        const biomeAtD = this.getBiomeAt(d);
+        const bossType = BIOMES[biomeAtD].boss;
+        const bossInfo = BOSSES[bossType];
+        this.obstacles.push({
+          x: W/2, distance: d,
+          radius: 60, type: 'boss',
+          hit: false, rotation: 0,
+          isBoss: true, bossType: bossType,
+          health: bossInfo.hp + this.endlessWave * 20,
+          maxHealth: bossInfo.hp + this.endlessWave * 20,
+          pattern: bossInfo.pattern,
+          movePhase: Math.random() * Math.PI * 2
+        });
+        this.endlessWave++;
+        continue;
+      }
+
+      // Crystal chance
+      let crystalChance = 0.45;
+      if (mods.moreCrystals) crystalChance = 0.6;
+      if (mods.moreObstacles) crystalChance = 0.35;
+
+      if (r < crystalChance) {
+        const rr = Math.random();
+        let type = 'normal';
+        const luckyBonus = sk.luckyFind ? 0.15 : 0;
+        if (rr > 0.95 + luckyBonus) type = 'rainbow';
+        else if (rr > 0.85 + luckyBonus) type = 'legendary';
+        else if (rr > 0.7 + luckyBonus * 0.5) type = 'rare';
+        this.crystals.push({
+          x: Math.random() * (W - 100) + 50,
+          distance: d,
+          radius: (20 + Math.random() * 25) * CRYSTAL_TYPES[type].size,
+          collected: false,
+          rotation: Math.random() * Math.PI * 2,
+          type, value: CRYSTAL_TYPES[type].value,
+          fractalType: Math.floor(Math.random() * 3)
+        });
+      } else if (r < crystalChance + 0.25) {
+        // Obstacle - sometimes moving
+        const isMoving = Math.random() < 0.25;
+        this.obstacles.push({
+          x: Math.random() * (W - 80) + 40,
+          distance: d,
+          radius: 18 + Math.random() * 18,
+          type: Math.random() < 0.5 ? 'darkCrystal' : 'spike',
+          hit: false,
+          rotation: Math.random() * Math.PI * 2,
+          moving: isMoving,
+          moveType: isMoving ? (Math.random() < 0.5 ? 'horizontal' : 'vertical') : null,
+          movePhase: Math.random() * Math.PI * 2,
+          moveAmp: 40 + Math.random() * 30
+        });
+      } else if (r < crystalChance + 0.37) {
+        const types = Object.keys(POWERUP_TYPES);
+        this.powerups.push({
+          x: Math.random() * (W - 80) + 40,
+          distance: d, radius: 25,
+          collected: false,
+          type: types[Math.floor(Math.random() * types.length)],
+          rotation: 0, bobOffset: Math.random() * Math.PI * 2
+        });
+      } else if (r < crystalChance + 0.47) {
+        for (let i = 0; i < 3; i++) {
+          this.coins.push({
+            x: Math.random() * (W - 80) + 40,
+            distance: d + i * 30,
+            radius: 12, collected: false, rotation: 0
+          });
+        }
+      } else if (r < crystalChance + 0.52) {
+        this.hazards.push({
+          x: Math.random() * W, distance: d,
+          type: Math.random() < 0.5 ? 'wind' : 'ice',
+          radius: 50 + Math.random() * 30, active: true
+        });
+      }
+
+      // Increase difficulty in endless
+      if (this.mode === 'endless') {
+        spacing = Math.max(50, 100 - Math.floor(d / 2000) * 3);
+      } else {
+        spacing = Math.max(60, 100 - Math.floor(d / 2000) * 3);
+      }
+    }
+  },
+
+  getBiomeAt(distance) {
+    if (this.mode === 'endless') {
+      const cycle = (distance / 3000) % 4;
+      if (cycle < 1) return 'ice';
+      if (cycle < 2) return 'crystal';
+      if (cycle < 3) return 'aurora';
+      return 'void';
+    }
+    const p = distance / this.hillLength;
+    if (p < 0.25) return 'ice';
+    if (p < 0.5) return 'crystal';
+    if (p < 0.75) return 'aurora';
+    return 'void';
+  },
+
+  spawnParticles(x, y, color, count, type = 'normal') {
+    if (!Settings.get('particles')) count = Math.min(count, 5);
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const s = type === 'crystal' ? 3 + Math.random() * 3 : 2 + Math.random() * 3;
+      this.particles.push({
+        x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2,
+        life: 40, maxLife: 40, color,
+        size: type === 'crystal' ? 3 + Math.random() * 4 : 2 + Math.random() * 3,
+        type, rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.2,
+        fractalType: Math.floor(Math.random() * 3)
+      });
+    }
+  },
+
+  shake(intensity) {
+    if (!Settings.get('shake')) return;
+    this.screenShake.intensity = Math.max(this.screenShake.intensity, intensity);
+  },
+
+  slowmo(duration) { this.slowMotion = duration; this.timeScale = 0.3; },
+
+  addAchievement(text, color = '#ffff00') {
+    this.achievements.push({ text, color, life: 180, maxLife: 180, y: H/2 - this.achievements.length * 40 });
+  },
+
+  tryCrit() {
+    const u = SaveManager.data.upgrades;
+    const base = 0.05 + u.critChance.level * 0.05;
+    const chance = this.critBoost > 0 ? base * 2 : base;
+    return Math.random() < chance;
+  },
+
+  activateUltimate() {
+    if (this.ultimateCharge < 100 || this.ultimateActive > 0) return;
+    const u = SaveManager.data.upgrades;
+    this.ultimateActive = 180 + u.ultimatePower.level * 60;
+    this.ultimateCharge = 0;
+    this.shake(20);
+    this.chromatic = 30;
+    this.addAchievement('💥 ULTIMATE!', '#ff0000');
+    this.slowmo(60);
+    AudioManager.ultimate();
+    // Size-based radius
+    const baseRadius = 200;
+    const sizeBonus = (this.snowball.radius - 20) * 2;
+    const ultRadius = baseRadius + sizeBonus;
+    for (const obs of this.obstacles) {
+      if (obs.hit) continue;
+      const sy = this.snowball.y - (obs.distance - this.distance);
+      const dx = this.snowball.x - obs.x;
+      const dy = this.snowball.y - sy;
+      const d = Math.hypot(dx, dy);
+      if (d < ultRadius) {
+        obs.hit = true;
+        this.spawnParticles(obs.x, sy, '#ff0066', 20, 'crystal');
+        this.score += 20;
+      }
+    }
+    for (let i = 0; i < 80; i++) {
+      this.spawnParticles(this.snowball.x, this.snowball.y, `hsl(${i * 4.5}, 100%, 50%)`, 1, 'crystal');
+    }
+  },
+
+  start() {
+    AudioManager.resume();
+    this.init();
+    this.state = 'playing';
+    UI.show(null);
+  },
+
+  pause() {
+    if (this.state !== 'playing') return;
+    this.state = 'paused';
+    UI.show('pauseScreen');
+  },
+
+  resume() {
+    if (this.state !== 'paused') return;
+    this.state = 'playing';
+    UI.show(null);
+  },
+
+  restart() { this.start(); },
+
+  quit() {
+    this.state = 'menu';
+    UI.updateMenu();
+    UI.show('menuScreen');
+  },
+
+  gameOver(won) {
+    this.state = 'gameover';
+    const elapsed = (performance.now() - this.runStartTime) / 1000;
+    const prestigeMult = Prestige.scoreMultiplier();
+    const finalScore = Math.round(this.score * prestigeMult);
+
+    Stats.add('totalRuns');
+    Stats.add('totalDistance', this.distance);
+    Stats.add('totalScore', finalScore);
+    Stats.add('playTime', elapsed);
+
+    if (finalScore > SaveManager.data.bestScore) SaveManager.data.bestScore = finalScore;
+    if (this.snowball.radius > SaveManager.data.bestSize) SaveManager.data.bestSize = this.snowball.radius;
+    if (this.mode === 'endless' && this.distance > Stats.get('endlessBest')) {
+      SaveManager.data.stats.endlessBest = this.distance;
+    }
+
+    // Update ghost
+    if (!SaveManager.data.ghost || finalScore > (SaveManager.data.ghost.score || 0)) {
+      SaveManager.data.ghost = {
+        mode: this.mode,
+        score: finalScore,
+        path: this.ghostPlayback.slice(0, 500) // limit size
+      };
+    }
+
+    Achievements.checkRunStats({
+      score: finalScore, distance: this.distance,
+      maxCombo: this.maxCombo, bossDefeated: this.boss && this.boss.defeated,
+      livesLost: this.livesLost, rainbowCount: this.rainbowCount,
+      legendaryCount: this.legendaryCount, dashCount: this.dashCount,
+      finalSize: this.snowball.radius, mode: this.mode,
+      bossTypes: this.bossTypesDefeated
+    });
+    if (!SaveManager.data.firstRun) Achievements.unlock('first_run');
+    SaveManager.data.firstRun = false;
+
+    // Daily challenge progress
+    Challenges.updateProgress('score', finalScore);
+    Challenges.updateProgress('distance', this.distance);
+    Challenges.updateProgress('crystals', Stats.get('totalCrystals'));
+    Challenges.updateProgress('combo', this.maxCombo);
+    Challenges.updateProgress('dash', this.dashCount);
+    Challenges.updateProgress('crit', this.crits);
+    if (this.boss && this.boss.defeated) Challenges.updateProgress('boss', 1);
+    if (this.rainbowCount > 0) Challenges.updateProgress('rainbow', this.rainbowCount);
+    if (this.livesLost === 0) Challenges.updateProgress('noHit', this.noHitDistance);
+
+    SaveManager.save();
+
+    UI.showGameOver(won, {
+      score: finalScore, size: this.snowball.radius,
+      distance: this.distance, maxCombo: this.maxCombo,
+      coinsEarned: this._coinsEarned || 0, crits: this.crits,
+      mode: this.mode
+    });
+  },
+
+  update() {
+    if (this.state !== 'playing') return;
+
+    const sb = this.snowball;
+    const u = SaveManager.data.upgrades;
+    const sk = SaveManager.data.skills;
+    const mods = this.dailyModifiers;
+
+    if (this.slowMotion > 0) {
+      this.slowMotion--;
+      if (this.slowMotion === 0) this.timeScale = 1;
+    }
+    if (sb.shield > 0) sb.shield--;
+    if (sb.magnet > 0) sb.magnet--;
+    if (sb.speed > 0) sb.speed--;
+    if (sb.multiplier > 0) sb.multiplier--;
+    if (sb.dash > 0) sb.dash--;
+    if (this.dashCooldown > 0) this.dashCooldown--;
+    if (this.invincible > 0) this.invincible--;
+    if (this.ultimateActive > 0) this.ultimateActive--;
+    if (this.critBoost > 0) this.critBoost--;
+    if (this.chromatic > 0) this.chromatic--;
+    const comboDuration = sk.comboMaster ? 180 : 120;
+    if (this.comboTimer > 0) {
+      this.comboTimer--;
+      if (this.comboTimer === 0) this.combo = 0;
+    }
+
+    // Weather
+    this.weatherTimer--;
+    if (this.weatherTimer <= 0) {
+      this.weather = Math.random() < 0.3 ? 'blizzard' : 'clear';
+      this.weatherTimer = 300 + Math.random() * 300;
+      this.wind = this.weather === 'blizzard' ? (Math.random() - 0.5) * 4 : 0;
+    }
+
+    // Dash
+    const wantDash = (this.keys['Shift'] || this.touchState.dash) && !mods.noDash;
+    if (wantDash && this.dashCooldown === 0 && sb.dash === 0) {
+      sb.dash = 30 + u.dashSpeed.level * 10;
+      this.dashCooldown = 120;
+      this.dashCount++;
+      this.spawnParticles(sb.x, sb.y, '#ffff00', 20, 'crystal');
+      this.shake(5);
+      AudioManager.dash();
+    }
+
+    // Ultimate
+    if (this.keys['q'] || this.keys['Q'] || this.touchState.ult) this.activateUltimate();
+
+    // Movement
+    const left = this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A'] || this.touchState.left;
+    const right = this.keys['ArrowRight'] || this.keys['d'] || this.keys['D'] || this.touchState.right;
+    const moveSpeed = sb.speed > 0 ? 0.7 : (sb.dash > 0 ? 1.2 : 0.5);
+    if (left) sb.vx -= moveSpeed;
+    if (right) sb.vx += moveSpeed;
+    sb.vx += this.wind * 0.05;
+    sb.vx *= 0.92;
+    const maxSpeed = sb.speed > 0 ? 8 : (sb.dash > 0 ? 12 : 6);
+    sb.vx = Math.max(-maxSpeed, Math.min(maxSpeed, sb.vx));
+    sb.x += sb.vx;
+    if (sb.x < sb.radius) { sb.x = sb.radius; sb.vx = 0; }
+    if (sb.x > W - sb.radius) { sb.x = W - sb.radius; sb.vx = 0; }
+
+    let scrollSpeed = sb.speed > 0 ? 4 : (sb.dash > 0 ? 6 : 3);
+    if (mods.fastScroll) scrollSpeed *= 1.3;
+    this.distance += scrollSpeed * this.timeScale;
+    sb.rotation += sb.vx * 0.05 + 0.1;
+    sb.glow = (sb.glow + 0.05) % (Math.PI * 2);
+
+    this.currentBiome = this.getBiomeAt(this.distance);
+    this.noHitDistance += scrollSpeed * this.timeScale;
+
+    // Checkpoints
+    for (const cp of this.checkpoints) {
+      if (!cp.activated && this.distance >= cp.distance) {
+        cp.activated = true;
+        this.addAchievement('CHECKPOINT!', '#00ff00');
+        AudioManager.play(1000, 0.2, 'sine', 0.25);
+      }
+    }
+
+    // Trail
+    if (Settings.get('particles') && Math.random() < 0.4) {
+      const tc = this.ultimateActive > 0 ? '#ff0000' :
+                 sb.dash > 0 ? '#ffff00' :
+                 sb.shield > 0 ? '#00ff00' :
+                 sb.magnet > 0 ? '#ff00ff' : '#00ffff';
+      this.trail.push({
+        x: sb.x + (Math.random() - 0.5) * sb.radius,
+        y: sb.y + sb.radius,
+        vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 2,
+        life: 20, maxLife: 20, size: 2 + Math.random() * 3,
+        color: tc, rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.1,
+        fractalType: Math.floor(Math.random() * 3)
+      });
+    }
+
+    // Ghost recording (every 10 frames)
+    if (this.ghostFrame++ % 10 === 0) {
+      this.ghostPlayback.push({ x: sb.x, y: sb.y, r: sb.radius, d: this.distance });
+      if (this.ghostPlayback.length > 500) this.ghostPlayback.shift();
+    }
+
+    for (const bg of this.bgFractals) bg.rotation += bg.rotSpeed;
+    for (const snow of this.snowParticles) {
+      snow.y += snow.speed * this.timeScale;
+      snow.x += snow.drift + this.wind * 0.3;
+      snow.rotation += snow.rotSpeed;
+      if (snow.y > H) { snow.y = -10; snow.x = Math.random() * W; }
+      if (snow.x < 0) snow.x = W;
+      if (snow.x > W) snow.x = 0;
+    }
+
+    // Hazards
+    for (const h of this.hazards) {
+      if (!h.active) continue;
+      const sy = sb.y - (h.distance - this.distance);
+      if (sy < -100 || sy > H + 100) continue;
+      const d = Math.hypot(sb.x - h.x, sb.y - sy);
+      if (d < h.radius) {
+        if (h.type === 'wind') sb.vx += (Math.random() - 0.5) * 2;
+        else sb.vx *= 0.95;
+      }
+    }
+
+    // Update moving obstacles
+    for (const obs of this.obstacles) {
+      if (obs.hit || !obs.moving) continue;
+      obs.movePhase += 0.03 * this.timeScale;
+      if (obs.moveType === 'horizontal') {
+        obs.x = obs._origX !== undefined ? obs._origX : obs.x;
+        if (obs._origX === undefined) obs._origX = obs.x;
+        obs.x = obs._origX + Math.sin(obs.movePhase) * obs.moveAmp;
+        obs.x = Math.max(obs.radius, Math.min(W - obs.radius, obs.x));
+      }
+    }
+
+    // Crystals
+    const magnetRange = 150 + u.magnetRange.level * 50;
+    const passiveMagnet = sk.crystalAura ? 100 : 0;
+    const totalMagnet = Math.max(magnetRange * (sb.magnet > 0 ? 1 : 0), passiveMagnet);
+
+    for (const c of this.crystals) {
+      if (c.collected) continue;
+      const sy = sb.y - (c.distance - this.distance);
+      if (sy < -50 || sy > H + 50) continue;
+      if (totalMagnet > 0) {
+        const dx = sb.x - c.x, dy = sb.y - sy;
+        const d = Math.hypot(dx, dy);
+        if (d < totalMagnet) c.x += (dx/d) * 2;
+      }
+      const dx = sb.x - c.x, dy = sb.y - sy;
+      const d = Math.hypot(dx, dy);
+      if (d < sb.radius + c.radius) {
+        c.collected = true;
+        sb.radius = Math.min(80, sb.radius + c.radius * 0.15);
+        this.combo++;
+        this.comboTimer = comboDuration;
+        if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+        const mult = (sb.multiplier > 0 ? 2 : 1) * (this.ultimateActive > 0 ? 2 : 1);
+        const pts = Math.round(c.value * 10 * this.combo * mult);
+        this.score += pts;
+        this.ultimateCharge = Math.min(100, this.ultimateCharge + c.value * 2);
+        Stats.add('totalCrystals');
+        AudioManager.collect();
+        const cc = CRYSTAL_TYPES[c.type].color;
+        this.spawnParticles(c.x, sy, cc === 'rainbow' ? '#ff00ff' : cc, 20, 'crystal');
+        if (this.combo > 1) {
+          this.particles.push({
+            x: c.x, y: sy - 30, vx: 0, vy: -2,
+            life: 60, maxLife: 60,
+            text: `${this.combo}x +${pts}`, type: 'text', color: '#ffff00'
+          });
+        }
+        if (c.type === 'legendary') {
+          this.legendaryCount++;
+          this.shake(8); this.slowmo(30);
+          this.addAchievement('LEGENDARY!', '#ffff00');
+        } else if (c.type === 'rainbow') {
+          this.rainbowCount++;
+          this.shake(12); this.slowmo(60);
+          this.addAchievement('RAINBOW!', '#ff00ff');
+          for (let i = 0; i < 40; i++) {
+            this.spawnParticles(c.x, sy, `hsl(${i * 9}, 100%, 50%)`, 1, 'crystal');
+          }
+        }
+        if (this.combo === 10) this.addAchievement('10x COMBO!', '#ff00ff');
+        if (this.combo === 25) this.addAchievement('25x MEGA!', '#ffff00');
+        if (this.combo === 50) this.addAchievement('50x ULTRA!', '#ff0000');
+        if (this.combo === 100) this.addAchievement('100x GODLIKE!', '#ff0000');
+      }
+    }
+
+    // Coins
+    this._coinsEarned = this._coinsEarned || 0;
+    for (const coin of this.coins) {
+      if (coin.collected) continue;
+      const sy = sb.y - (coin.distance - this.distance);
+      if (sy < -50 || sy > H + 50) continue;
+      const d = Math.hypot(sb.x - coin.x, sb.y - sy);
+      if (d < sb.radius + coin.radius) {
+        coin.collected = true;
+        let v = 5 + u.coinValue.level * 3;
+        if (mods.doubleCoins) v *= 2;
+        if (mods.bigStart) v = Math.round(v * 1.2);
+        SaveManager.data.coins += v;
+        Stats.add('totalCoins', v);
+        this._coinsEarned += v;
+        this.score += v;
+        this.spawnParticles(coin.x, sy, '#ffff00', 10, 'crystal');
+        AudioManager.coin();
+      }
+    }
+
+    // Boss (classic/daily single boss)
+    if (this.boss && !this.boss.defeated) {
+      const bsy = sb.y - (this.boss.distance - this.distance);
+      if (bsy > -100 && bsy < H + 100) {
+        this.boss.rotation += 0.02;
+        this.boss.attackTimer++;
+        this.boss.movePhase += 0.02;
+        // Boss movement
+        this.boss.x = W/2 + Math.sin(this.boss.movePhase) * 100;
+        if (this.boss.attackTimer % 60 === 0) {
+          this.obstacles.push({
+            x: this.boss.x + (Math.random() - 0.5) * 200,
+            distance: this.boss.distance + 100,
+            radius: 20, type: 'darkCrystal',
+            hit: false, rotation: 0
+          });
+        }
+        const d = Math.hypot(sb.x - this.boss.x, sb.y - bsy);
+        if (d < sb.radius + this.boss.radius) {
+          if (sb.dash > 0 || sb.shield > 0 || this.ultimateActive > 0) {
+            const dmg = this.ultimateActive > 0 ? 40 : 20;
+            this.boss.health -= dmg;
+            this.shake(15);
+            this.spawnParticles(this.boss.x, bsy, '#ff0066', 30, 'crystal');
+            AudioManager.hit();
+            if (this.boss.health <= 0) {
+              this.boss.defeated = true;
+              this.score += 500;
+              SaveManager.data.coins += 100;
+              Stats.add('totalCoins', 100);
+              Stats.add('bossesDefeated');
+              this._coinsEarned += 100;
+              this.bossTypesDefeated.add(this.boss.type);
+              this.addAchievement('BOSS DEFEATED! +500', '#ff0000');
+              for (let i = 0; i < 80; i++) {
+                this.spawnParticles(this.boss.x, bsy, `hsl(${i * 4.5}, 100%, 50%)`, 1, 'crystal');
+              }
+              AudioManager.powerup();
+            }
+          } else if (this.invincible === 0) {
+            this.takeDamage();
+          }
+        }
+      }
+    }
+
+    // Obstacles
+    for (const obs of this.obstacles) {
+      if (obs.hit) continue;
+      const sy = sb.y - (obs.distance - this.distance);
+      if (sy < -50 || sy > H + 50) continue;
+      const d = Math.hypot(sb.x - obs.x, sb.y - sy);
+      if (d < sb.radius + obs.radius) {
+        // Snow trail skill destroys small obstacles
+        if (sk.snowTrail && obs.radius < 25 && !obs.isBoss) {
+          obs.hit = true;
+          this.spawnParticles(obs.x, sy, '#ffffff', 15, 'crystal');
+          this.score += 5;
+          continue;
+        }
+        if (sb.shield > 0 || this.invincible > 0 || this.ultimateActive > 0) {
+          obs.hit = true;
+          if (sb.shield > 0) sb.shield = 0;
+          this.spawnParticles(obs.x, sy, '#00ff00', 30, 'crystal');
+          this.score += 15;
+        } else if (sb.dash > 0) {
+          obs.hit = true;
+          this.spawnParticles(obs.x, sy, '#ffff00', 25, 'crystal');
+          this.score += 10;
+          // Crit check on dash
+          if (this.tryCrit()) {
+            this.crits++;
+            Stats.add('critsLanded');
+            this.score += 25;
+            this.spawnParticles(obs.x, sy, '#ffff00', 30, 'crystal');
+            this.addAchievement('CRITICAL!', '#ffff00');
+            AudioManager.crit();
+            this.shake(8);
+          }
+        } else {
+          obs.hit = true;
+          const isCrit = this.tryCrit() && false; // enemy crits don't happen, but player crit reduces damage
+          let loss = obs.radius * 0.2;
+          if (sk.thickIce) loss *= 0.6;
+          sb.radius = Math.max(8, sb.radius - loss);
+          sb.vx += ((sb.x - obs.x) / d) * 3;
+          this.combo = 0; this.comboTimer = 0;
+          this.noHitDistance = 0;
+          this.takeDamage();
+        }
+      }
+    }
+
+    // Powerups
+    for (const p of this.powerups) {
+      if (p.collected) continue;
+      const sy = sb.y - (p.distance - this.distance);
+      if (sy < -50 || sy > H + 50) continue;
+      const d = Math.hypot(sb.x - p.x, sb.y - sy);
+      if (d < sb.radius + p.radius) {
+        p.collected = true;
+        const t = POWERUP_TYPES[p.type];
+        switch (p.type) {
+          case 'SHIELD': sb.shield = t.duration; break;
+          case 'MAGNET': sb.magnet = t.duration; break;
+          case 'SPEED': sb.speed = t.duration; break;
+          case 'MULTIPLIER': sb.multiplier = t.duration; break;
+          case 'LIFE': this.lives = Math.min(3 + u.maxLives.level, this.lives + 1); break;
+          case 'SLOWMO': this.slowmo(t.duration); break;
+          case 'CRIT': this.critBoost = t.duration; break;
+        }
+        this.spawnParticles(p.x, sy, t.color, 30, 'crystal');
+        AudioManager.powerup();
+        this.particles.push({
+          x: p.x, y: sy - 30, vx: 0, vy: -2,
+          life: 90, maxLife: 90, text: t.icon, type: 'text', color: t.color
+        });
+      }
+    }
+
+    // Particles
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.x += p.vx * this.timeScale;
+      p.y += p.vy * this.timeScale;
+      if (p.type !== 'text') {
+        p.vy += 0.15 * this.timeScale;
+        p.vx *= 0.98;
+        p.rotation += p.rotSpeed;
+      }
+      p.life--;
+      if (p.life <= 0) this.particles.splice(i, 1);
+    }
+    for (let i = this.trail.length - 1; i >= 0; i--) {
+      const p = this.trail[i];
+      p.x += p.vx; p.y += p.vy;
+      p.rotation += p.rotSpeed;
+      p.life--;
+      if (p.life <= 0) this.trail.splice(i, 1);
+    }
+    for (let i = this.achievements.length - 1; i >= 0; i--) {
+      this.achievements[i].life--;
+      if (this.achievements[i].life <= 0) this.achievements.splice(i, 1);
+    }
+
+    if (this.screenShake.intensity > 0) {
+      this.screenShake.x = (Math.random() - 0.5) * this.screenShake.intensity;
+      this.screenShake.y = (Math.random() - 0.5) * this.screenShake.intensity;
+      this.screenShake.intensity *= 0.9;
+      if (this.screenShake.intensity < 0.5) {
+        this.screenShake.intensity = 0;
+        this.screenShake.x = 0; this.screenShake.y = 0;
+      }
+    }
+
+    if (this.distance >= this.hillLength && this.mode !== 'endless') { this.gameOver(true); }
+  },
+
+  takeDamage() {
+    this.lives--;
+    this.livesLost++;
+    this.invincible = 120;
+    this.shake(10);
+    this.spawnParticles(this.snowball.x, this.snowball.y, '#ff0000', 30, 'crystal');
+    AudioManager.hit();
+    if (this.lives <= 0) this.gameOver(false);
+  },
+
+  drawBackground() {
+    // Parallax layers
+    for (const layer of this.bgLayers) {
+      ctx.fillStyle = layer.color;
+      ctx.beginPath();
+      const offset = (this.distance * layer.speed) % 200;
+      ctx.moveTo(0, H);
+      for (let i = 0; i < layer.peaks.length; i++) {
+        const p = layer.peaks[i];
+        const x = p.x - offset;
+        ctx.lineTo(x, p.y);
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    for (const s of this.bgStars) {
+      s.twinkle += 0.05;
+      const a = 0.5 + Math.sin(s.twinkle) * 0.5;
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (const bg of this.bgFractals) {
+      ctx.globalAlpha = bg.alpha;
+      FractalCache.drawCached(ctx, bg.type, bg.x, bg.y, bg.size, bg.color, 2);
+      ctx.globalAlpha = 1;
+    }
+    for (const snow of this.snowParticles) {
+      ctx.globalAlpha = 0.7;
+      FractalCache.drawCached(ctx, snow.type, snow.x, snow.y, snow.size, '#ffffff', 1);
+      ctx.globalAlpha = 1;
+    }
+    ctx.strokeStyle = BIOMES[this.currentBiome].colors[0] + '33';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 10; i++) {
+      const y = ((i * 100) + this.distance * 0.3) % H;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      for (let x = 0; x < W; x += 30) {
+        ctx.lineTo(x, y + Math.sin(x * 0.03 + this.distance * 0.005) * 8);
+      }
+      ctx.stroke();
+    }
+    if (this.slowMotion > 0) {
+      ctx.fillStyle = `rgba(0,255,255,${0.08 + Math.sin(Date.now() * 0.01) * 0.04})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+  },
+
+  drawGhost() {
+    if (!this.ghostData || !Settings.get('ghost')) return;
+    const path = this.ghostData.path;
+    if (!path || path.length === 0) return;
+    // Find ghost position matching current distance
+    const currentDist = this.distance;
+    let closestIdx = 0;
+    let minDiff = Infinity;
+    for (let i = 0; i < path.length; i++) {
+      const diff = Math.abs(path[i].d - currentDist);
+      if (diff < minDiff) { minDiff = diff; closestIdx = i; }
+    }
+    const g = path[closestIdx];
+    // Scale ghost y based on distance diff
+    const distDiff = currentDist - g.d;
+    const ghostY = H - 150 - distDiff * 0.5;
+    if (ghostY < -50 || ghostY > H + 50) return;
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(g.x, ghostY, g.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  },
+
+  drawSnowball() {
+    const sb = this.snowball;
+    const x = sb.x, y = sb.y, r = sb.radius;
+    const skin = Skins.get(SaveManager.data.selectedSkin);
+
+    if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 0) ctx.globalAlpha = 0.5;
+    if (sb.dash > 0) {
+      ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 6;
+      ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 30;
+      ctx.beginPath(); ctx.arc(x, y, r + 15, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    if (sb.shield > 0) {
+      const a = 0.3 + Math.sin(Date.now() * 0.01) * 0.2;
+      ctx.strokeStyle = `rgba(0,255,0,${a})`; ctx.lineWidth = 4;
+      ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.arc(x, y, r + 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    if (sb.magnet > 0 || SaveManager.data.skills.crystalAura) {
+      const a = 0.2 + Math.sin(Date.now() * 0.008) * 0.1;
+      ctx.strokeStyle = `rgba(255,0,255,${a})`; ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      const range = sb.magnet > 0 ? 150 + SaveManager.data.upgrades.magnetRange.level * 50 : 100;
+      ctx.beginPath(); ctx.arc(x, y, range, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    const glowSize = r * 1.5 + Math.sin(sb.glow) * 5;
+    const glowGrad = ctx.createRadialGradient(x, y, r, x, y, glowSize);
+    glowGrad.addColorStop(0, skin.colors[1] + '66');
+    glowGrad.addColorStop(0.5, skin.colors[2] + '33');
+    glowGrad.addColorStop(1, skin.colors[1] + '00');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath(); ctx.arc(x, y, glowSize, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(x, y + r + 8, r * 0.8, r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+
+    const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
+    if (skin.rainbow) {
+      const t = Date.now() * 0.001;
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.3, `hsl(${(t * 60) % 360}, 100%, 60%)`);
+      grad.addColorStop(0.6, `hsl(${(t * 60 + 120) % 360}, 100%, 50%)`);
+      grad.addColorStop(1, `hsl(${(t * 60 + 240) % 360}, 100%, 30%)`);
+    } else {
+      grad.addColorStop(0, skin.colors[0]);
+      grad.addColorStop(0.3, skin.colors[1]);
+      grad.addColorStop(0.6, skin.colors[2]);
+      grad.addColorStop(1, skin.colors[3]);
+    }
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(sb.rotation);
+    ctx.globalAlpha = 0.6;
+    FractalCache.drawCached(ctx, 0, 0, 0, r * 0.7, '#ffffff', 2);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    ctx.strokeStyle = skin.rainbow ? `hsl(${(Date.now() * 0.1) % 360}, 100%, 60%)` : skin.colors[1];
+    ctx.lineWidth = 3;
+    ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 15;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  },
+
+  drawCrystal(c) {
+    const sy = this.snowball.y - (c.distance - this.distance);
+    if (sy < -50 || sy > H + 50 || c.collected) return;
+    c.rotation += 0.02;
+    const color = CRYSTAL_TYPES[c.type].color;
+    const dc = color === 'rainbow' ? `hsl(${(Date.now() * 0.1) % 360}, 100%, 50%)` : color;
+    const glow = ctx.createRadialGradient(c.x, sy, 0, c.x, sy, c.radius * 1.5);
+    glow.addColorStop(0, dc + 'cc');
+    glow.addColorStop(0.5, dc + '66');
+    glow.addColorStop(1, dc + '00');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(c.x, sy, c.radius * 1.5, 0, Math.PI * 2); ctx.fill();
+    FractalCache.drawCached(ctx, c.fractalType, c.x, sy, c.radius, dc, 3);
+    if (c.value > 1) {
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'center'; ctx.fillText(c.value + 'x', c.x, sy + 5);
+      ctx.textAlign = 'left';
+    }
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 4; i++) {
+      const a = (Date.now() * 0.003 + i * 1.5) % (Math.PI * 2);
+      const sx = c.x + Math.cos(a) * c.radius * 0.7;
+      const ssy = sy + Math.sin(a) * c.radius * 0.7;
+      ctx.beginPath(); ctx.arc(sx, ssy, 2, 0, Math.PI * 2); ctx.fill();
+    }
+  },
+
+  drawCoin(coin) {
+    const sy = this.snowball.y - (coin.distance - this.distance);
+    if (sy < -50 || sy > H + 50 || coin.collected) return;
+    coin.rotation += 0.1;
+    ctx.save();
+    ctx.translate(coin.x, sy); ctx.rotate(coin.rotation);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, coin.radius);
+    g.addColorStop(0, '#ffff88'); g.addColorStop(0.7, '#ffff00'); g.addColorStop(1, '#ff8800');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, coin.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('$', 0, 0);
+    ctx.restore();
+  },
+
+  drawObstacle(obs) {
+    const sy = this.snowball.y - (obs.distance - this.distance);
+    if (sy < -50 || sy > H + 50 || obs.hit) return;
+    obs.rotation += 0.01;
+
+    if (obs.isBoss) {
+      // Draw as boss
+      const bossInfo = BOSSES[obs.bossType];
+      const glow = ctx.createRadialGradient(obs.x, sy, 0, obs.x, sy, obs.radius * 2);
+      glow.addColorStop(0, bossInfo.color + 'cc');
+      glow.addColorStop(0.5, bossInfo.color + '66');
+      glow.addColorStop(1, bossInfo.color + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(obs.x, sy, obs.radius * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(obs.x, sy); ctx.rotate(obs.rotation);
+      FractalCache.drawCached(ctx, 1, 0, 0, obs.radius, bossInfo.color, 3);
+      ctx.restore();
+      // Health bar
+      const bw = 80, bh = 8;
+      const bx = obs.x - bw/2, by = sy - obs.radius - 15;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(bx, by, bw, bh);
+      const hp = obs.health / obs.maxHealth;
+      ctx.fillStyle = bossInfo.color; ctx.fillRect(bx, by, bw * hp, bh);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Arial';
+      ctx.textAlign = 'center'; ctx.fillText(bossInfo.name, obs.x, by - 3);
+      ctx.textAlign = 'left';
+      return;
+    }
+
+    const glow = ctx.createRadialGradient(obs.x, sy, 0, obs.x, sy, obs.radius * 1.3);
+    glow.addColorStop(0, 'rgba(255,0,100,0.5)');
+    glow.addColorStop(1, 'rgba(100,0,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(obs.x, sy, obs.radius * 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.translate(obs.x, sy); ctx.rotate(obs.rotation);
+    FractalCache.drawCached(ctx, obs.type === 'darkCrystal' ? 1 : 2, 0, 0, obs.radius,
+      obs.type === 'darkCrystal' ? '#ff0066' : '#6600ff', 2);
+    ctx.restore();
+    // Moving indicator
+    if (obs.moving) {
+      ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(obs.x, sy, obs.radius + 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  },
+
+  drawPowerup(p) {
+    const sy = this.snowball.y - (p.distance - this.distance);
+    if (sy < -50 || sy > H + 50 || p.collected) return;
+    p.rotation += 0.03;
+    const bob = Math.sin(Date.now() * 0.005 + p.bobOffset) * 5;
+    const t = POWERUP_TYPES[p.type];
+    const glow = ctx.createRadialGradient(p.x, sy + bob, 0, p.x, sy + bob, p.radius * 2);
+    glow.addColorStop(0, t.color + 'cc');
+    glow.addColorStop(0.5, t.color + '66');
+    glow.addColorStop(1, t.color + '00');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(p.x, sy + bob, p.radius * 2, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.translate(p.x, sy + bob); ctx.rotate(p.rotation);
+    ctx.strokeStyle = t.color; ctx.lineWidth = 3;
+    ctx.shadowColor = t.color; ctx.shadowBlur = 15;
+    ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI * 2); ctx.stroke();
+    FractalCache.drawCached(ctx, 0, 0, 0, p.radius * 0.8, t.color, 2);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t.icon, p.x, sy + bob);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  },
+
+  drawBoss() {
+    if (!this.boss || this.boss.defeated) return;
+    const bsy = this.snowball.y - (this.boss.distance - this.distance);
+    if (bsy < -100 || bsy > H + 100) return;
+    this.boss.rotation += 0.02;
+    const bossInfo = BOSSES[this.boss.type];
+    const glow = ctx.createRadialGradient(this.boss.x, bsy, 0, this.boss.x, bsy, this.boss.radius * 2);
+    glow.addColorStop(0, bossInfo.color + 'cc');
+    glow.addColorStop(0.5, bossInfo.color + '66');
+    glow.addColorStop(1, bossInfo.color + '00');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(this.boss.x, bsy, this.boss.radius * 2, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.translate(this.boss.x, bsy); ctx.rotate(this.boss.rotation);
+    FractalCache.drawCached(ctx, 1, 0, 0, this.boss.radius, bossInfo.color, 3);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(0, 0, this.boss.radius * 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath(); ctx.arc(0, 0, this.boss.radius * 0.15, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    const bw = 100, bh = 10;
+    const bx = this.boss.x - bw/2, by = bsy - this.boss.radius - 20;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(bx, by, bw, bh);
+    const hp = this.boss.health / this.boss.maxHealth;
+    const hg = ctx.createLinearGradient(bx, by, bx + bw, by);
+    hg.addColorStop(0, '#ff0000'); hg.addColorStop(1, bossInfo.color);
+    ctx.fillStyle = hg; ctx.fillRect(bx, by, bw * hp, bh);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, bh);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center'; ctx.fillText(bossInfo.name, this.boss.x, by - 5);
+    ctx.textAlign = 'left';
+  },
+
+  drawParticles() {
+    for (const p of this.trail) {
+      const a = (p.life / p.maxLife) * 0.6;
+      ctx.globalAlpha = a;
+      FractalCache.drawCached(ctx, p.fractalType, p.x, p.y, p.size, p.color, 1);
+    }
+    for (const p of this.particles) {
+      const a = p.life / p.maxLife;
+      ctx.globalAlpha = a;
+      if (p.type === 'text') {
+        ctx.fillStyle = p.color;
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = p.color; ctx.shadowBlur = 10;
+        ctx.fillText(p.text, p.x, p.y);
+        ctx.shadowBlur = 0;
+        ctx.textAlign = 'left';
+      } else if (p.type === 'crystal') {
+        FractalCache.drawCached(ctx, p.fractalType, p.x, p.y, p.size, p.color, 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+  },
+
+  drawHUD() {
+    const progress = this.mode === 'endless' ? 0 : Math.min(1, this.distance / this.hillLength);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(10, 10, 200, 25);
+    if (this.mode !== 'endless') {
+      const bg = ctx.createLinearGradient(10, 10, 210, 10);
+      bg.addColorStop(0, '#00ffff'); bg.addColorStop(0.5, '#ff00ff'); bg.addColorStop(1, '#ffff00');
+      ctx.fillStyle = bg; ctx.fillRect(10, 10, 200 * progress, 25);
+    } else {
+      ctx.fillStyle = '#ff00ff';
+      ctx.fillRect(10, 10, 200, 25);
+    }
+    ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2;
+    ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 10;
+    ctx.strokeRect(10, 10, 200, 25); ctx.shadowBlur = 0;
+    ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial';
+    const distText = this.mode === 'endless'
+      ? `♾️ ${Math.round(this.distance)}m`
+      : `${Math.round(this.distance)}m / ${this.hillLength}m`;
+    ctx.fillText(distText, 15, 27);
+
+    // Mode indicator
+    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 10px Arial';
+    ctx.fillText(this.mode.toUpperCase(), 160, 27);
+
+    // Dash
+    if (this.dashCooldown > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(10, 40, 100, 20);
+      ctx.fillStyle = '#ffff00';
+      ctx.fillRect(10, 40, 100 * (1 - this.dashCooldown / 120), 20);
+      ctx.strokeStyle = '#ffff00'; ctx.strokeRect(10, 40, 100, 20);
+      ctx.fillStyle = 'white'; ctx.font = 'bold 11px Arial';
+      ctx.fillText('DASH', 15, 54);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,0,0.3)'; ctx.fillRect(10, 40, 100, 20);
+      ctx.strokeStyle = '#ffff00'; ctx.strokeRect(10, 40, 100, 20);
+      ctx.fillStyle = '#ffff00'; ctx.font = 'bold 11px Arial';
+      ctx.fillText('DASH READY', 15, 54);
+    }
+    // Ultimate
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(120, 40, 90, 20);
+    const ug = ctx.createLinearGradient(120, 40, 210, 40);
+    ug.addColorStop(0, '#ff0000'); ug.addColorStop(1, '#ff00ff');
+    ctx.fillStyle = ug; ctx.fillRect(120, 40, 90 * (this.ultimateCharge / 100), 20);
+    ctx.strokeStyle = this.ultimateCharge >= 100 ? '#ff0000' : '#666';
+    ctx.lineWidth = 2;
+    if (this.ultimateCharge >= 100) { ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 10; }
+    ctx.strokeRect(120, 40, 90, 20); ctx.shadowBlur = 0;
+    ctx.fillStyle = 'white'; ctx.font = 'bold 11px Arial';
+    ctx.fillText('ULT [Q]', 125, 54);
+
+    // Lives + size
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W - 170, 10, 160, 30);
+    ctx.strokeStyle = '#ff00ff'; ctx.lineWidth = 2;
+    ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 10;
+    ctx.strokeRect(W - 170, 10, 160, 30); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffff00'; ctx.font = 'bold 16px Arial';
+    ctx.fillText(`💎${Math.round(this.snowball.radius)} ❤️${this.lives}`, W - 160, 31);
+
+    // Powerups
+    let py = 50;
+    const drawPU = (icon, time, color) => {
+      ctx.fillStyle = color + '4d'; ctx.fillRect(W - 170, py, 160, 20);
+      ctx.fillStyle = color; ctx.font = 'bold 11px Arial';
+      ctx.fillText(`${icon} ${Math.ceil(time / 60)}s`, W - 160, py + 15);
+      py += 25;
+    };
+    if (this.snowball.shield > 0) drawPU('🛡️', this.snowball.shield, '#00ff00');
+    if (this.snowball.magnet > 0) drawPU('🧲', this.snowball.magnet, '#ff00ff');
+    if (this.snowball.speed > 0) drawPU('⚡', this.snowball.speed, '#ffff00');
+    if (this.snowball.multiplier > 0) drawPU('✨2x', this.snowball.multiplier, '#ff8800');
+    if (this.critBoost > 0) drawPU('🎯2x', this.critBoost, '#ffff00');
+
+    // Daily modifiers
+    if (this.mode === 'daily' && Object.keys(this.dailyModifiers).length > 0) {
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+      ctx.fillRect(W - 170, py, 160, 18);
+      ctx.fillStyle = '#ffd700'; ctx.font = 'bold 10px Arial';
+      ctx.fillText('📅 ' + Object.keys(this.dailyModifiers).join(', '), W - 165, py + 13);
+    }
+
+    // Finish line
+    if (this.mode !== 'endless' && this.distance > this.hillLength - 500) {
+      const fy = this.snowball.y - (this.hillLength - this.distance);
+      if (fy > 0 && fy < H) {
+        ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 4;
+        ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(W, fy); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffff00'; ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 15;
+        ctx.fillText('❄️ FINISH ❄️', W/2, fy + 8);
+        ctx.shadowBlur = 0; ctx.textAlign = 'left';
+      }
+    }
+
+    // Achievements
+    for (const a of this.achievements) {
+      ctx.globalAlpha = a.life / a.maxLife;
+      ctx.fillStyle = a.color;
+      ctx.font = 'bold 22px Arial';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = a.color; ctx.shadowBlur = 20;
+      ctx.fillText(a.text, W/2, a.y);
+      ctx.shadowBlur = 0;
+      ctx.textAlign = 'left';
+    }
+    ctx.globalAlpha = 1;
+
+    // Combo
+    if (this.combo > 1) {
+      ctx.fillStyle = '#ffff00';
+      ctx.font = 'bold 20px Arial';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 10;
+      ctx.fillText(`${this.combo}x COMBO`, W/2, H - 30);
+      ctx.shadowBlur = 0; ctx.textAlign = 'left';
+    }
+  },
+
+  drawEffects() {
+    if (!Settings.get('effects')) return;
+    // Vignette
+    const vg = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.8);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.5)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Chromatic aberration on ultimate
+    if (this.chromatic > 0) {
+      const intensity = this.chromatic / 30;
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.1 * intensity;
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(-5 * intensity, 0, W, H);
+      ctx.fillStyle = '#00ffff';
+      ctx.fillRect(5 * intensity, 0, W, H);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+  },
+
+  draw() {
+    ctx.save();
+    ctx.translate(this.screenShake.x, this.screenShake.y);
+    ctx.clearRect(-10, -10, W + 20, H + 20);
+    this.drawBackground();
+    this.drawGhost();
+    for (const c of this.crystals) this.drawCrystal(c);
+    for (const c of this.coins) this.drawCoin(c);
+    for (const o of this.obstacles) this.drawObstacle(o);
+    for (const p of this.powerups) this.drawPowerup(p);
+    this.drawBoss();
+    this.drawParticles();
+    this.drawSnowball();
+    this.drawHUD();
+    this.drawEffects();
+    ctx.restore();
+  },
+
+  loop(now) {
+    const dt = now - this.lastFrame;
+    this.lastFrame = now;
+    this.fpsAccum += dt;
+    this.fpsFrames++;
+    if (this.fpsAccum >= 500) {
+      this.fps = Math.round(1000 * this.fpsFrames / this.fpsAccum);
+      this.fpsAccum = 0; this.fpsFrames = 0;
+      if (Settings.get('fps')) document.getElementById('fps').textContent = `${this.fps} FPS`;
+    }
+    this.update();
+    this.draw();
+    // Update challenge timer display
+    if (document.getElementById('challengesScreen').classList.contains('active')) {
+      document.getElementById('challengeReset').textContent = Challenges.timeUntilReset();
+    }
+    requestAnimationFrame(t => this.loop(t));
+  }
+};
+
+/* ============================================================
+   INPUT
+   ============================================================ */
+document.addEventListener('keydown', e => {
+  Game.keys[e.key] = true;
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    if (Game.state === 'menu') Game.start();
+  }
+  if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+    if (Game.state === 'playing') Game.pause();
+    else if (Game.state === 'paused') Game.resume();
+  }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', e => { Game.keys[e.key] = false; });
+
+function setupTouch(id, key) {
+  const el = document.getElementById(id);
+  const on = e => { e.preventDefault(); Game.touchState[key] = true; el.classList.add('active'); AudioManager.resume(); };
+  const off = e => { e.preventDefault(); Game.touchState[key] = false; el.classList.remove('active'); };
+  el.addEventListener('touchstart', on, { passive: false });
+  el.addEventListener('touchend', off, { passive: false });
+  el.addEventListener('touchcancel', off, { passive: false });
+  el.addEventListener('mousedown', on);
+  el.addEventListener('mouseup', off);
+  el.addEventListener('mouseleave', off);
+}
+setupTouch('touchLeft', 'left');
+setupTouch('touchRight', 'right');
+function setupTap(id, key) {
+  const el = document.getElementById(id);
+  const tap = e => {
+    e.preventDefault();
+    Game.touchState[key] = true;
+    el.classList.add('active');
+    AudioManager.resume();
+    setTimeout(() => { Game.touchState[key] = false; el.classList.remove('active'); }, 100);
+  };
+  el.addEventListener('touchstart', tap, { passive: false });
+  el.addEventListener('mousedown', tap);
+}
+setupTap('touchDash', 'dash');
+setupTap('touchUlt', 'ult');
+
+// Menu buttons
+document.querySelectorAll('[data-action]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const a = btn.dataset.action;
+    AudioManager.resume();
+    AudioManager.menu();
+    switch (a) {
+      case 'play': Game.start(); break;
+      case 'resume': Game.resume(); break;
+      case 'restart': Game.restart(); break;
+      case 'quit': Game.quit(); break;
+      case 'shop': UI.renderShop('upgrades'); UI.show('shopScreen'); break;
+      case 'prestige': UI.renderPrestige(); UI.show('prestigeScreen'); break;
+      case 'doPrestige':
+        const result = Prestige.doPrestige();
+        if (result) {
+          UI.toast(`⭐ Prestige! +${result.gained} crystals (total ${result.total})`);
+          UI.renderPrestige();
+        } else {
+          UI.toast('Not enough score to prestige yet!');
+        }
+        break;
+      case 'skins': UI.renderSkins(); UI.show('skinsScreen'); break;
+      case 'challenges': UI.renderChallenges(); UI.show('challengesScreen'); break;
+      case 'settings': UI.show('settingsScreen'); break;
+      case 'stats': UI.renderStats(); UI.show('statsScreen'); break;
+      case 'achievements': UI.renderAchievements(); UI.show('achievementsScreen'); break;
+      case 'howto': UI.show('howtoScreen'); break;
+      case 'export':
+        const data = SaveManager.export();
+        navigator.clipboard.writeText(data).then(() => UI.toast('📤 Save copied to clipboard!'))
+          .catch(() => prompt('Copy this save data:', data));
+        break;
+      case 'import':
+        const str = prompt('Paste save data:');
+        if (str && SaveManager.import(str)) {
+          UI.toast('📥 Save imported! Refreshing...');
+          setTimeout(() => location.reload(), 1000);
+        } else if (str) {
+          UI.toast('❌ Invalid save data');
+        }
+        break;
+      case 'reset':
+        if (confirm('Reset ALL progress? This cannot be undone!')) {
+          SaveManager.reset();
+          UI.toast('🗑️ Progress reset');
+          setTimeout(() => location.reload(), 1000);
+        }
+        break;
+      case 'back':
+        if (Game.state === 'playing' || Game.state === 'paused') UI.show('pauseScreen');
+        else { UI.updateMenu(); UI.show('menuScreen'); }
+        break;
+    }
+  });
+});
+
+// Mode selector
+document.querySelectorAll('.mode-card').forEach(card => {
+  card.addEventListener('click', () => {
+    SaveManager.data.selectedMode = card.dataset.mode;
+    SaveManager.save();
+    document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    AudioManager.menu();
+    // Track mode play
+    if (card.dataset.mode === 'endless') Achievements.unlock('all_modes');
+  });
+});
+
+// Shop tabs
+document.querySelectorAll('#shopScreen .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    UI.renderShop(tab.dataset.tab);
+    AudioManager.menu();
+  });
+});
+
+// Settings toggles
+document.querySelectorAll('[data-setting]').forEach(el => {
+  el.addEventListener('click', () => {
+    const key = el.dataset.setting;
+    Settings.set(key, !Settings.get(key));
+    AudioManager.enabled = Settings.get('sound');
+  });
+});
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ============================================================
+   INIT
+   ============================================================ */
+SaveManager.load();
+Settings.apply();
+AudioManager.init();
+AudioManager.enabled = Settings.get('sound');
+UI.updateMenu();
+UI.show(SaveManager.data.firstRun ? 'tutorialScreen' : 'menuScreen');
+Game.lastFrame = performance.now();
+requestAnimationFrame(t => Game.loop(t));
+
+// Update challenge reset timer periodically
+setInterval(() => {
+  if (document.getElementById('challengesScreen').classList.contains('active')) {
+    document.getElementById('challengeReset').textContent = Challenges.timeUntilReset();
+  }
+}, 1000);
+</script>
+</body>
+</html>
